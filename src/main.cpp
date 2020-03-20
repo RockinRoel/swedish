@@ -10,7 +10,7 @@
 
 #include <memory>
 
-void testCreateDbAndOneUser() {
+void testCreateDbAndOneUser(int argc, char *argv[]) {
   Wt::Dbo::logToWt();
 
   Wt::WServer server(argv[0]);
