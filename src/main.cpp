@@ -1,3 +1,6 @@
+#include <Wt/WApplication.h>
+#include <Wt/WBootstrapTheme.h>
+#include <Wt/WContainerWidget.h>
 #include <Wt/WLogger.h>
 #include <Wt/WServer.h>
 
@@ -7,6 +10,8 @@
 
 #include "model/Session.h"
 #include "model/User.h"
+
+#include "widgets/ColorPicker.h"
 
 #include <memory>
 
@@ -40,4 +45,16 @@ void testCreateDbAndOneUser(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
+  auto theme = std::make_shared<Wt::WBootstrapTheme>();
+  theme->setVersion(Wt::BootstrapVersion::v3);
+
+  return Wt::WRun(argc, argv, [&theme](const Wt::WEnvironment &env) {
+    auto app = std::make_unique<Wt::WApplication>(env);
+    app->setTheme(theme);
+
+    app->messageResourceBundle().use(app->appRoot() + "template");
+    app->root()->addNew<swedish::ColorPicker>();
+
+    return app;
+  });
 }

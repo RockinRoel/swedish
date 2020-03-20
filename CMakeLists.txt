@@ -10,6 +10,7 @@ add_executable(
     src/main.cpp
     src/model/User.h src/model/User.cpp
     src/model/Session.h src/model/Session.cpp
+    src/widgets/ColorPicker.h src/widgets/ColorPicker.cpp
 )
 
 target_link_libraries(
