@@ -53,7 +53,7 @@ struct sql_value_traits< ::Wt::WColor>
 
 namespace swedish {
 
-class User {
+class User final : public Wt::Dbo::Dbo<User> {
 public:
   std::string name;
   Wt::WColor color;
