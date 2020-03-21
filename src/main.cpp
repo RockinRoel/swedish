@@ -11,7 +11,7 @@
 #include "model/Session.h"
 #include "model/User.h"
 
-#include "widgets/ColorPicker.h"
+#include "widgets/PuzzleUploader.h"
 
 #include <memory>
 
@@ -23,7 +23,7 @@ void testCreateDbAndOneUser(int argc, char *argv[]) {
   server.setServerConfiguration(argc, argv);
 
   auto conn = std::make_unique<Wt::Dbo::backend::Postgres>(
-        "user=roel password=hypersecure port=5432 dbname=swedish host=127.0.0.1");
+        "user=roel password=hypersecure port=5432 dbname=swedish host=10.1.0.45");
 
   conn->setProperty("show-queries", "true");
 
@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
     app->setTheme(theme);
 
     app->messageResourceBundle().use(app->appRoot() + "template");
-    app->root()->addNew<swedish::ColorPicker>();
+    app->root()->addNew<swedish::PuzzleUploader>();
 
     return app;
   });

@@ -11,6 +11,7 @@ add_executable(
     src/model/User.h src/model/User.cpp
     src/model/Session.h src/model/Session.cpp
     src/widgets/ColorPicker.h src/widgets/ColorPicker.cpp
+    src/widgets/PuzzleUploader.h src/widgets/PuzzleUploader.cpp
 )
 
 target_link_libraries(
