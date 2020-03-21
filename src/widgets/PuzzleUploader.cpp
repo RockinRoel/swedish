@@ -49,6 +49,67 @@ inline double luminance(const unsigned char * const buf,
   return total / 9.0;
 }
 
+Wt::WRectF determineSquare(const std::vector<unsigned char> &buf,
+                           const int w,
+                           const int h,
+                           const int x,
+                           const int y)
+{
+  std::vector<bool> visited(buf.size(), false);
+  const double px_l = luminance(buf.data(), w, x, y);
+
+  std::deque<std::tuple<int, int, double>> queue;
+  queue.push_back({x - 1, y, px_l});
+  queue.push_back({x, y - 1, px_l});
+  queue.push_back({x + 1, y, px_l});
+  queue.push_back({x, y + 1, px_l});
+
+  visited[static_cast<std::size_t>(y * w + x)] = true;
+
+  int min_x = x;
+  int max_x = x;
+  int min_y = y;
+  int max_y = y;
+  while (!queue.empty()) {
+    auto p = queue.front();
+    queue.pop_front();
+
+    const int cur_x = std::get<0>(p);
+    const int cur_y = std::get<1>(p);
+    const double prev_l = std::get<2>(p);
+
+    if (cur_x < 1 ||
+        cur_x >= w - 1 ||
+        cur_y < 1 ||
+        cur_y >= h - 1)
+      continue; // out of bounds
+
+    if (visited[static_cast<std::size_t>(cur_y * w + cur_x)])
+      continue; // already visited
+
+    visited[static_cast<std::size_t>(cur_y * w + cur_x)] = true;
+
+    const double l = luminance(buf.data(), w, cur_x, cur_y);
+    if (std::abs(l - prev_l) < 0.01) {
+      queue.push_back({cur_x - 1, cur_y, l});
+      queue.push_back({cur_x, cur_y - 1, l});
+      queue.push_back({cur_x + 1, cur_y, l});
+      queue.push_back({cur_x, cur_y + 1, l});
+
+      if (cur_x < min_x)
+        min_x = cur_x;
+      if (cur_x > max_x)
+        max_x = cur_x;
+      if (cur_y < min_y)
+        min_y = cur_y;
+      if (cur_y > max_y)
+        max_y = cur_y;
+    }
+  }
+
+  return Wt::WRectF(min_x, min_y, max_x - min_x + 1, max_y - min_y + 1);
+}
+
 }
 
 namespace swedish {
@@ -136,117 +197,7 @@ std::shared_ptr<Wt::WRasterImage> PuzzleUploader::fillImage(std::shared_ptr<Wt::
     painter.setPen(Wt::PenStyle::None);
     painter.setBrush(Wt::StandardColor::Red);
 
-    const auto before = std::chrono::steady_clock::now();
-
-    const double px_l = luminance(rgbaPixels.data(), w, x, y);
-
-    std::deque<std::tuple<int, int, double>> queue;
-    queue.push_back({x - 1, y, px_l});
-    queue.push_back({x, y - 1, px_l});
-    queue.push_back({x + 1, y, px_l});
-    queue.push_back({x, y + 1, px_l});
-
-    visited[static_cast<std::size_t>(y * w + x)] = true;
-
-    int min_x = x;
-    int max_x = x;
-    int min_y = y;
-    int max_y = y;
-    while (!queue.empty()) {
-      auto p = queue.front();
-      queue.pop_front();
-
-      const int cur_x = std::get<0>(p);
-      const int cur_y = std::get<1>(p);
-      const double prev_l = std::get<2>(p);
-
-      if (cur_x < 1 ||
-          cur_x >= w - 1 ||
-          cur_y < 1 ||
-          cur_y >= h - 1)
-        continue; // out of bounds
-
-      if (visited[static_cast<std::size_t>(cur_y * w + cur_x)])
-        continue; // already visited
-
-      visited[static_cast<std::size_t>(cur_y * w + cur_x)] = true;
-
-      const double l = luminance(rgbaPixels.data(), w, cur_x, cur_y);
-      if (std::abs(l - prev_l) < 0.01) {
-        queue.push_back({cur_x - 1, cur_y, l});
-        queue.push_back({cur_x, cur_y - 1, l});
-        queue.push_back({cur_x + 1, cur_y, l});
-        queue.push_back({cur_x, cur_y + 1, l});
-
-        if (cur_x < min_x)
-          min_x = cur_x;
-        if (cur_x > max_x)
-          max_x = cur_x;
-        if (cur_y < min_y)
-          min_y = cur_y;
-        if (cur_y > max_y)
-          max_y = cur_y;
-      }
-    }
-
-    /*
-    double l = px_l;
-    for (int y2 = y; y2 >= 0; --y2) {
-      Wt::WColor col = bufpix(rgbaPixels.data(), w, x, y2);
-      double hsl[3];
-      col.toHSL(hsl);
-      if (std::abs(l - hsl[2]) > 0.05) {
-        painter.drawRect(Wt::WRectF(x - 2.5, y2 - 2.5, 5.0, 5.0));
-        break;
-      }
-      l = hsl[2];
-    }
-
-    l = px_l;
-    for (int y2 = y; y2 < h; ++y2) {
-      Wt::WColor col = bufpix(rgbaPixels.data(), w, x, y2);
-      double hsl[3];
-      col.toHSL(hsl);
-      if (std::abs(l - hsl[2]) > 0.05) {
-        painter.drawRect(Wt::WRectF(x - 2.5, y2 - 2.5, 5.0, 5.0));
-        break;
-      }
-      l = hsl[2];
-    }
-
-    l = px_l;
-    for (int x2 = x; x2 >= 0; --x2) {
-      Wt::WColor col = bufpix(rgbaPixels.data(), w, x2, y);
-      double hsl[3];
-      col.toHSL(hsl);
-      if (std::abs(l - hsl[2]) > 0.05) {
-        painter.drawRect(Wt::WRectF(x2 - 2.5, y - 2.5, 5.0, 5.0));
-        break;
-      }
-      l = hsl[2];
-    }
-
-    l = px_l;
-    for (int x2 = x; x2 < w; ++x2) {
-      Wt::WColor col = bufpix(rgbaPixels.data(), w, x2, y);
-      double hsl[3];
-      col.toHSL(hsl);
-      if (std::abs(l - hsl[2]) > 0.05) {
-        painter.drawRect(Wt::WRectF(x2 - 2.5, y - 2.5, 5.0, 5.0));
-        break;
-      }
-      l = hsl[2];
-    }
-    */
-
-    const auto after = std::chrono::steady_clock::now();
-
-    std::cout << "TOOK " << std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(after - before).count() << "ms\n";
-
-    painter.drawRect(Wt::WRectF(min_x,
-                                min_y,
-                                max_x - min_x + 1,
-                                max_y - min_y + 1));
+    painter.drawRect(determineSquare(rgbaPixels, w, h, x, y));
   }
 
   return image;
