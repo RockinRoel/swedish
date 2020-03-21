@@ -149,14 +149,14 @@ std::vector<std::tuple<Wt::WRectF, int, int>> determineSquares(const std::vector
         cur_y >= h - 1)
       continue;
 
-    const Wt::WRectF sq = determineSquare(buf, w, h, cur_x, cur_y);
-    const Wt::WPointF c = sq.center();
-
-    auto it = std::find_if(begin(result), end(result), [c](const std::tuple<Wt::WRectF, int, int> &other) {
-      return std::get<0>(other).contains(c);
+    auto it = std::find_if(begin(result), end(result), [point=Wt::WPointF(cur_x, cur_y)](const std::tuple<Wt::WRectF, int, int> &other) {
+      return std::get<0>(other).contains(point);
     });
     if (it != end(result))
       continue;
+
+    const Wt::WRectF sq = determineSquare(buf, w, h, cur_x, cur_y);
+    const Wt::WPointF c = sq.center();
 
     const double area = sq.width() * sq.height();
 
