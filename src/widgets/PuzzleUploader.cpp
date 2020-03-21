@@ -13,6 +13,7 @@
 #include <Wt/WTemplate.h>
 #include <Wt/WTransform.h>
 
+#include <algorithm>
 #include <chrono>
 #include <deque>
 #include <memory>
@@ -110,6 +111,76 @@ Wt::WRectF determineSquare(const std::vector<unsigned char> &buf,
   return Wt::WRectF(min_x, min_y, max_x - min_x + 1, max_y - min_y + 1);
 }
 
+std::vector<std::tuple<Wt::WRectF, int, int>> determineSquares(const std::vector<unsigned char> &buf,
+                                         const int w,
+                                         const int h,
+                                         const int x,
+                                         const int y)
+{
+  std::vector<std::tuple<Wt::WRectF, int, int>> result;
+
+  result.push_back({determineSquare(buf, w, h, x, y), 0 , 0});
+
+  const Wt::WPointF center = std::get<0>(result[0]).center();
+  const int c_x = static_cast<int>(center.x());
+  const int c_y = static_cast<int>(center.y());
+  const int r_w = static_cast<int>(std::get<0>(result[0]).width());
+  const int r_h = static_cast<int>(std::get<0>(result[0]).height());
+  const double r_area = std::get<0>(result[0]).width() * std::get<0>(result[0]).height();
+  std::deque<std::tuple<int, int, double, int, int>> queue;
+  queue.push_back({c_x - r_w, c_y, r_area, 0, -1});
+  queue.push_back({c_x, c_y - r_h, r_area, -1, 0});
+  queue.push_back({c_x + r_w, c_y, r_area, 0, 1});
+  queue.push_back({c_x, c_y + r_h, r_area, 1, 0});
+
+  while (!queue.empty()) {
+    auto p = queue.front();
+    queue.pop_front();
+
+    const int cur_x = std::get<0>(p);
+    const int cur_y = std::get<1>(p);
+    const double prev_area = std::get<2>(p);
+    const int row = std::get<3>(p);
+    const int col = std::get<4>(p);
+
+    if (cur_x < 1 ||
+        cur_x >= w - 1 ||
+        cur_y < 1 ||
+        cur_y >= h - 1)
+      continue;
+
+    const Wt::WRectF sq = determineSquare(buf, w, h, cur_x, cur_y);
+    const Wt::WPointF c = sq.center();
+
+    auto it = std::find_if(begin(result), end(result), [c](const std::tuple<Wt::WRectF, int, int> &other) {
+      return std::get<0>(other).contains(c);
+    });
+    if (it != end(result))
+      continue;
+
+    const double area = sq.width() * sq.height();
+
+    if (area < 0.7 * prev_area ||
+        area > 1.3 * prev_area)
+      continue;
+
+    result.push_back({sq, std::get<3>(p), std::get<4>(p)});
+
+    const int new_c_x = static_cast<int>(c.x());
+    const int new_c_y = static_cast<int>(c.y());
+    const int new_r_w = static_cast<int>(sq.width());
+    const int new_r_h = static_cast<int>(sq.height());
+    queue.push_back({new_c_x - new_r_w, new_c_y, area, row, col - 1});
+    queue.push_back({new_c_x, new_c_y - new_r_h, area, row - 1, col});
+    queue.push_back({new_c_x + new_r_w, new_c_y, area, row, col + 1});
+    queue.push_back({new_c_x, new_c_y + new_r_h, area, row + 1, col});
+
+    std::cout << "QUEUE SIZE: " << queue.size() << '\n' << std::flush;
+  }
+
+  return result;
+}
+
 }
 
 namespace swedish {
@@ -195,9 +266,18 @@ std::shared_ptr<Wt::WRasterImage> PuzzleUploader::fillImage(std::shared_ptr<Wt::
     Wt::WPainter painter(image.get());
 
     painter.setPen(Wt::PenStyle::None);
-    painter.setBrush(Wt::StandardColor::Red);
+    painter.setBrush(Wt::StandardColor::Black);
 
-    painter.drawRect(determineSquare(rgbaPixels, w, h, x, y));
+    const auto squares = determineSquares(rgbaPixels, w, h, x, y);
+    for (const auto &square : squares) {
+      const Wt::WRectF sq = std::get<0>(square);
+      const int row = std::get<1>(square);
+      const int col = std::get<2>(square);
+      painter.drawText(sq,
+                       Wt::AlignmentFlag::Center | Wt::AlignmentFlag::Middle,
+                       Wt::TextFlag::SingleLine,
+                       Wt::utf8("({1},{2})").arg(row).arg(col));
+    }
   }
 
   return image;
