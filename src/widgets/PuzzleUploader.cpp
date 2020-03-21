@@ -1,5 +1,7 @@
 #include "PuzzleUploader.h"
 
+#include "../model/Square.h"
+
 #include <Wt/WApplication.h>
 #include <Wt/WBrush.h>
 #include <Wt/WColor.h>
@@ -17,7 +19,6 @@
 #include <chrono>
 #include <deque>
 #include <memory>
-#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -59,7 +60,12 @@ Wt::WRectF determineSquare(const std::vector<unsigned char> &buf,
   std::vector<bool> visited(buf.size(), false);
   const double px_l = luminance(buf.data(), w, x, y);
 
-  std::deque<std::tuple<int, int, double>> queue;
+  struct QueueEl {
+    int x, y; // x, y position
+    double l; // luminance
+  };
+
+  std::deque<QueueEl> queue;
   queue.push_back({x - 1, y, px_l});
   queue.push_back({x, y - 1, px_l});
   queue.push_back({x + 1, y, px_l});
@@ -75,9 +81,9 @@ Wt::WRectF determineSquare(const std::vector<unsigned char> &buf,
     auto p = queue.front();
     queue.pop_front();
 
-    const int cur_x = std::get<0>(p);
-    const int cur_y = std::get<1>(p);
-    const double prev_l = std::get<2>(p);
+    const int cur_x = p.x;
+    const int cur_y = p.y;
+    const double prev_l = p.l;
 
     if (cur_x < 1 ||
         cur_x >= w - 1 ||
@@ -111,23 +117,31 @@ Wt::WRectF determineSquare(const std::vector<unsigned char> &buf,
   return Wt::WRectF(min_x, min_y, max_x - min_x + 1, max_y - min_y + 1);
 }
 
-std::vector<std::tuple<Wt::WRectF, int, int>> determineSquares(const std::vector<unsigned char> &buf,
-                                         const int w,
-                                         const int h,
-                                         const int x,
-                                         const int y)
+std::vector<swedish::Square> determineSquares(const std::vector<unsigned char> &buf,
+                                              const int w,
+                                              const int h,
+                                              const int x,
+                                              const int y)
 {
-  std::vector<std::tuple<Wt::WRectF, int, int>> result;
+  std::vector<swedish::Square> result;
 
   result.push_back({determineSquare(buf, w, h, x, y), 0 , 0});
+  const Wt::WRectF &rect = result[0].rect;
 
-  const Wt::WPointF center = std::get<0>(result[0]).center();
+  const Wt::WPointF center = rect.center();
   const int c_x = static_cast<int>(center.x());
   const int c_y = static_cast<int>(center.y());
-  const int r_w = static_cast<int>(std::get<0>(result[0]).width());
-  const int r_h = static_cast<int>(std::get<0>(result[0]).height());
-  const double r_area = std::get<0>(result[0]).width() * std::get<0>(result[0]).height();
-  std::deque<std::tuple<int, int, double, int, int>> queue;
+  const int r_w = static_cast<int>(rect.width());
+  const int r_h = static_cast<int>(rect.height());
+  const double r_area = rect.width() * rect.height();
+
+  struct QueueEl {
+    int x, y;
+    double area;
+    int row, col;
+  };
+
+  std::deque<QueueEl> queue;
   queue.push_back({c_x - r_w, c_y, r_area, 0, -1});
   queue.push_back({c_x, c_y - r_h, r_area, -1, 0});
   queue.push_back({c_x + r_w, c_y, r_area, 0, 1});
@@ -137,11 +151,11 @@ std::vector<std::tuple<Wt::WRectF, int, int>> determineSquares(const std::vector
     auto p = queue.front();
     queue.pop_front();
 
-    const int cur_x = std::get<0>(p);
-    const int cur_y = std::get<1>(p);
-    const double prev_area = std::get<2>(p);
-    const int row = std::get<3>(p);
-    const int col = std::get<4>(p);
+    const int cur_x = p.x;
+    const int cur_y = p.y;
+    const double prev_area = p.area;
+    const int row = p.row;
+    const int col = p.col;
 
     if (cur_x < 1 ||
         cur_x >= w - 1 ||
@@ -149,8 +163,8 @@ std::vector<std::tuple<Wt::WRectF, int, int>> determineSquares(const std::vector
         cur_y >= h - 1)
       continue;
 
-    auto it = std::find_if(begin(result), end(result), [point=Wt::WPointF(cur_x, cur_y)](const std::tuple<Wt::WRectF, int, int> &other) {
-      return std::get<0>(other).contains(point);
+    auto it = std::find_if(begin(result), end(result), [point=Wt::WPointF(cur_x, cur_y)](const swedish::Square &other) {
+      return other.rect.contains(point);
     });
     if (it != end(result))
       continue;
@@ -164,7 +178,7 @@ std::vector<std::tuple<Wt::WRectF, int, int>> determineSquares(const std::vector
         area > 1.3 * prev_area)
       continue;
 
-    result.push_back({sq, std::get<3>(p), std::get<4>(p)});
+    result.push_back({sq, row, col});
 
     const int new_c_x = static_cast<int>(c.x());
     const int new_c_y = static_cast<int>(c.y());
@@ -212,7 +226,7 @@ void PuzzleUploader::handleClicked(const Wt::WMouseEvent &evt)
 std::shared_ptr<Wt::WRasterImage> PuzzleUploader::createImage(Rotation rotation) const
 {
   Wt::WApplication *app = Wt::WApplication::instance();
-  Wt::WPainter::Image img(app->docRoot() + "/puzzle.jpg", app->docRoot() + "/puzzle.jpg");
+  Wt::WPainter::Image img(app->docRoot() + "/puzzle3.jpg", app->docRoot() + "/puzzle3.jpg");
   int w = img.width();
   int h = img.height();
   if (rotation == Rotation::Clockwise90 ||
@@ -270,9 +284,9 @@ std::shared_ptr<Wt::WRasterImage> PuzzleUploader::fillImage(std::shared_ptr<Wt::
 
     const auto squares = determineSquares(rgbaPixels, w, h, x, y);
     for (const auto &square : squares) {
-      const Wt::WRectF sq = std::get<0>(square);
-      const int row = std::get<1>(square);
-      const int col = std::get<2>(square);
+      const Wt::WRectF sq = square.rect;
+      const int row = square.row;
+      const int col = square.col;
       painter.drawText(sq,
                        Wt::AlignmentFlag::Center | Wt::AlignmentFlag::Middle,
                        Wt::TextFlag::SingleLine,
