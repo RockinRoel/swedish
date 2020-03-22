@@ -1,26 +1,15 @@
-#include "PuzzleUploader.h"
+#include "SquareFinder.h"
 
-#include "../model/Square.h"
-
-#include <Wt/WApplication.h>
-#include <Wt/WBrush.h>
 #include <Wt/WColor.h>
-#include <Wt/WImage.h>
-#include <Wt/WPaintedWidget.h>
 #include <Wt/WPainter.h>
-#include <Wt/WPen.h>
 #include <Wt/WPointF.h>
 #include <Wt/WRasterImage.h>
 #include <Wt/WRectF.h>
-#include <Wt/WTemplate.h>
-#include <Wt/WTransform.h>
 
 #include <algorithm>
 #include <chrono>
 #include <deque>
-#include <memory>
-#include <utility>
-#include <vector>
+#include <iostream>
 
 namespace {
 
@@ -51,11 +40,48 @@ inline double luminance(const unsigned char * const buf,
   return total / 9.0;
 }
 
-Wt::WRectF determineSquare(const std::vector<unsigned char> &buf,
-                           const int w,
-                           const int h,
-                           const int x,
-                           const int y)
+}
+
+namespace swedish {
+
+SquareFinder::SquareFinder(const std::string &path,
+                           const Rotation rotation,
+                           const int x, const int y)
+  : stopFuture_(stopSignal_.get_future())
+{
+  thread_ = std::thread([this, path, rotation, x, y]{
+    int w, h;
+    std::vector<unsigned char> buf = extractImageData(path, rotation, w, h);
+    determineSquares(buf, w, h, x, y);
+  });
+}
+
+SquareFinder::~SquareFinder()
+{
+  abort();
+
+  if (thread_.joinable()) {
+    thread_.join();
+  }
+}
+
+void SquareFinder::abort()
+{
+  stopSignal_.set_value();
+}
+
+bool SquareFinder::stopRequested()
+{
+  if (stopFuture_.wait_for(std::chrono::milliseconds(0)) == std::future_status::timeout)
+    return false;
+  return true;
+}
+
+Wt::WRectF SquareFinder::determineSquare(const std::vector<unsigned char> &buf,
+                                         const int w,
+                                         const int h,
+                                         const int x,
+                                         const int y)
 {
   std::vector<bool> visited(buf.size(), false);
   const double px_l = luminance(buf.data(), w, x, y);
@@ -78,6 +104,9 @@ Wt::WRectF determineSquare(const std::vector<unsigned char> &buf,
   int min_y = y;
   int max_y = y;
   while (!queue.empty()) {
+    if (stopRequested())
+      return Wt::WRectF();
+
     auto p = queue.front();
     queue.pop_front();
 
@@ -117,16 +146,14 @@ Wt::WRectF determineSquare(const std::vector<unsigned char> &buf,
   return Wt::WRectF(min_x, min_y, max_x - min_x + 1, max_y - min_y + 1);
 }
 
-std::vector<swedish::Square> determineSquares(const std::vector<unsigned char> &buf,
-                                              const int w,
-                                              const int h,
-                                              const int x,
-                                              const int y)
+void SquareFinder::determineSquares(const std::vector<unsigned char> &buf,
+                                    const int w,
+                                    const int h,
+                                    const int x,
+                                    const int y)
 {
-  std::vector<swedish::Square> result;
-
-  result.push_back({determineSquare(buf, w, h, x, y), 0 , 0});
-  const Wt::WRectF &rect = result[0].rect;
+  squares_.push_back({determineSquare(buf, w, h, x, y), 0 , 0});
+  const Wt::WRectF &rect = squares_[0].rect;
 
   const Wt::WPointF center = rect.center();
   const int c_x = static_cast<int>(center.x());
@@ -148,6 +175,9 @@ std::vector<swedish::Square> determineSquares(const std::vector<unsigned char> &
   queue.push_back({c_x, c_y + r_h, r_area, 1, 0});
 
   while (!queue.empty()) {
+    if (stopRequested())
+      return;
+
     auto p = queue.front();
     queue.pop_front();
 
@@ -163,13 +193,17 @@ std::vector<swedish::Square> determineSquares(const std::vector<unsigned char> &
         cur_y >= h - 1)
       continue;
 
-    auto it = std::find_if(begin(result), end(result), [point=Wt::WPointF(cur_x, cur_y)](const swedish::Square &other) {
+    auto it = std::find_if(begin(squares_), end(squares_), [point=Wt::WPointF(cur_x, cur_y)](const swedish::Square &other) {
       return other.rect.contains(point);
     });
-    if (it != end(result))
+    if (it != end(squares_))
       continue;
 
     const Wt::WRectF sq = determineSquare(buf, w, h, cur_x, cur_y);
+
+    if (sq.isNull())
+      return; // stop requested
+
     const Wt::WPointF c = sq.center();
 
     const double area = sq.width() * sq.height();
@@ -178,7 +212,7 @@ std::vector<swedish::Square> determineSquares(const std::vector<unsigned char> &
         area > 1.3 * prev_area)
       continue;
 
-    result.push_back({sq, row, col});
+    squares_.push_back({sq, row, col});
 
     const int new_c_x = static_cast<int>(c.x());
     const int new_c_y = static_cast<int>(c.y());
@@ -192,52 +226,25 @@ std::vector<swedish::Square> determineSquares(const std::vector<unsigned char> &
     std::cout << "QUEUE SIZE: " << queue.size() << '\n' << std::flush;
   }
 
-  return result;
+  // TODO(Roel): signal done!
 }
 
-}
-
-namespace swedish {
-
-PuzzleUploader::PuzzleUploader()
-  : Wt::WCompositeWidget(std::make_unique<Wt::WTemplate>(tr("tpl.swedish.puzzle_uploader"))),
-    image_(impl()->bindNew<Wt::WImage>("puzzle_image"))
+std::vector<unsigned char> SquareFinder::extractImageData(const std::string &path,
+                                                          Rotation rotation,
+                                                          int &w, int &h)
 {
-  auto img = createImage(Rotation::Clockwise90);
-  image_->setImageLink(Wt::WLink(img));
-
-  image_->clicked().connect(this, &PuzzleUploader::handleClicked);
-}
-
-PuzzleUploader::~PuzzleUploader()
-{ }
-
-Wt::WTemplate *PuzzleUploader::impl()
-{
-  return static_cast<Wt::WTemplate*>(implementation());
-}
-
-void PuzzleUploader::handleClicked(const Wt::WMouseEvent &evt)
-{
-  auto img = fillImage(createImage(Rotation::Clockwise90), Wt::WPointF(evt.widget().x, evt.widget().y));
-  image_->setImageLink(Wt::WLink(img));
-}
-
-std::shared_ptr<Wt::WRasterImage> PuzzleUploader::createImage(Rotation rotation) const
-{
-  Wt::WApplication *app = Wt::WApplication::instance();
-  Wt::WPainter::Image img(app->docRoot() + "/puzzle3.jpg", app->docRoot() + "/puzzle3.jpg");
-  int w = img.width();
-  int h = img.height();
+  Wt::WPainter::Image img(path, path);
+  w = img.width();
+  h = img.height();
   if (rotation == Rotation::Clockwise90 ||
       rotation == Rotation::AntiClockwise90) {
     std::swap(w, h);
   }
 
-  auto result = std::make_shared<Wt::WRasterImage>("jpg", w, h);
+  Wt::WRasterImage rasterImage("png", w, h);
 
   {
-    Wt::WPainter painter(result.get());
+    Wt::WPainter painter(&rasterImage);
 
     if (rotation == Rotation::Clockwise90) {
       painter.translate(w, 0);
@@ -253,46 +260,11 @@ std::shared_ptr<Wt::WRasterImage> PuzzleUploader::createImage(Rotation rotation)
     painter.drawImage(Wt::WPointF(0, 0), img);
   }
 
-  return result;
-}
-
-std::shared_ptr<Wt::WRasterImage> PuzzleUploader::fillImage(std::shared_ptr<Wt::WRasterImage> image,
-                                                            const Wt::WPointF &point)
-{
   std::vector<unsigned char> rgbaPixels;
-
-  const int w = static_cast<int>(image->width().toPixels());
-  const int h = static_cast<int>(image->height().toPixels());
-  const int x = static_cast<int>(point.x());
-  const int y = static_cast<int>(point.y());
-
-  if (x < 0 || x >= w)
-    return image;
-  if (y < 0 || y >= h)
-    return image;
-
   rgbaPixels.resize(static_cast<std::size_t>(w * h * 4));
-  image->getPixels(rgbaPixels.data());
+  rasterImage.getPixels(rgbaPixels.data());
 
-  {
-    Wt::WPainter painter(image.get());
-
-    painter.setPen(Wt::PenStyle::None);
-    painter.setBrush(Wt::StandardColor::Black);
-
-    const auto squares = determineSquares(rgbaPixels, w, h, x, y);
-    for (const auto &square : squares) {
-      const Wt::WRectF sq = square.rect;
-      const int row = square.row;
-      const int col = square.col;
-      painter.drawText(sq,
-                       Wt::AlignmentFlag::Center | Wt::AlignmentFlag::Middle,
-                       Wt::TextFlag::SingleLine,
-                       Wt::utf8("({1},{2})").arg(row).arg(col));
-    }
-  }
-
-  return image;
+  return rgbaPixels;
 }
 
 }

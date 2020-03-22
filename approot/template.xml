@@ -1,17 +1,5 @@
 <messages>
-    <message id="tpl.swedish.colorpicker">
-        <div>
-            Current color: ${current_color}
-        </div>
-        <div>
-            Hue: ${hue_slider} ${hue_spinbox}
-        </div>
-        <div>
-            Saturation: ${saturation_slider} ${saturation_spinbox}
-        </div>
-        <div>
-            Lightness: ${lightness_slider} ${lightness_spinbox}
-        </div>
+    <message id="tpl.swedish.layout">
     </message>
     <message id="tpl.swedish.puzzle_uploader">
         ${puzzle_image}

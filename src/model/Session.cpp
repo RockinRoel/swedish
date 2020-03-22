@@ -2,6 +2,7 @@
 
 #include <Wt/WLogger.h>
 
+#include "Puzzle.h"
 #include "User.h"
 
 namespace swedish {
@@ -25,6 +26,7 @@ Session::~Session()
 
 void Session::init()
 {
+  mapClass<Puzzle>("puzzles");
   mapClass<User>("users");
 
   try {
