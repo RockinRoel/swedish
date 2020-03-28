@@ -10,6 +10,8 @@
 
 using namespace std::chrono_literals;
 
+#define TIMER 0
+
 namespace {
 
 constexpr const std::chrono::seconds interval = 3s;
@@ -29,6 +31,34 @@ GlobalSession::GlobalSession(Wt::WIOService *ioService,
 {
   try {
     session_.createTables();
+
+    {
+      Wt::Dbo::Transaction t(session_);
+
+      auto puzzle = Wt::Dbo::make_ptr<Puzzle>();
+      puzzle.modify()->path = "/puzzle.jpg";
+      puzzle.modify()->rotation = Rotation::Clockwise90;
+      puzzle.modify()->width = 3000;
+      puzzle.modify()->height = 4000;
+      auto &rows = puzzle.modify()->rows_;
+
+      constexpr int maxChar = static_cast<int>(Character::IJ);
+      int counter = 0;
+      for (int r = 0; r < 10; ++r) {
+        auto &row = rows.emplace_back();
+        for (int c = 0; c < 10; ++c) {
+          auto &cell = row.emplace_back();
+          cell.square = Wt::WRectF(10 + c * 30, 10 + r * 30, 30, 30);
+          cell.character_ = static_cast<Character>(counter % (maxChar + 1));
+          ++counter;
+        }
+      }
+      rows[4][4].square = Wt::WRectF();
+      rows[5][5].square = Wt::WRectF();
+      rows[3][2].square = Wt::WRectF();
+
+      session_.add(puzzle);
+    }
   } catch (Wt::Dbo::Exception &e) {
     Wt::log("info") << "swedish::GlobalSession" << ": Caught exception: " << e.what();
     Wt::log("info") << "swedish::GlobalSession" << ": Assuming tables already exist and continuing";
@@ -36,8 +66,10 @@ GlobalSession::GlobalSession(Wt::WIOService *ioService,
 
   session_.setFlushMode(Wt::Dbo::FlushMode::Manual);
 
+#if TIMER
   timer_.expires_after(interval);
   timer_.async_wait(std::bind(&GlobalSession::timeout, this, std::placeholders::_1));
+#endif
 }
 
 GlobalSession::~GlobalSession()
@@ -92,6 +124,10 @@ void GlobalSession::updateChar(long long puzzle,
 
   Cell &cell = puzzlePtr.modify()->rows_[static_cast<std::size_t>(cellRef.first)][static_cast<std::size_t>(cellRef.second)];
 
+  if (cell.character_ == character) {
+    return;
+  }
+
   cell.character_ = character;
   cell.user_ = user;
 }
@@ -121,8 +157,10 @@ void GlobalSession::timeout(boost::system::error_code errc)
   sync(false);
 
   if (!terminated_) {
+#if TIMER
     timer_.expires_after(interval);
     timer_.async_wait(std::bind(&GlobalSession::timeout, this, std::placeholders::_1));
+#endif
   }
 }
 

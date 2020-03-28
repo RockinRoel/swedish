@@ -70,14 +70,20 @@ Application::Application(const Wt::WEnvironment &env,
   userList_ = usersPanel->setCentralWidget(std::make_unique<Wt::WContainerWidget>());
   userList_->setList(true);
 
+  Wt::Dbo::ptr<Puzzle> puzzle;
+
   {
     Wt::Dbo::Transaction t(session_);
 
-    Wt::Dbo::collection<Wt::Dbo::ptr<User>> users = session_.find<User>();
+    {
+      Wt::Dbo::collection<Wt::Dbo::ptr<User>> users = session_.find<User>();
 
-    for (const auto &user: users) {
-      users_.push_back({user.id(), user->name, user->color});
+      for (const auto &user: users) {
+        users_.push_back({user.id(), user->name, user->color});
+      }
     }
+
+    puzzle = session_.load<Puzzle>(1);
   }
 
   Wt::WFont font;
@@ -95,27 +101,16 @@ Application::Application(const Wt::WEnvironment &env,
   rightLayout_->setContentsMargins(3, 3, 3, 3);
   rightLayout_->setSpacing(3);
 
-  auto navbar = rightLayout_->addWidget(std::make_unique<Wt::WNavigationBar>());
+  auto topbar = rightLayout_->addWidget(std::make_unique<Wt::WTemplate>(Wt::WString::tr("tpl.swedish.topbar")));
 
-  navbar->addWidget(std::make_unique<Wt::WPushButton>(Wt::utf8("Previous")), Wt::AlignmentFlag::Left);
-  auto puzzleUploadBtnPtr = std::make_unique<Wt::WPushButton>(Wt::utf8("Upload new puzzle"));
-  auto puzzleUploadBtn = puzzleUploadBtnPtr.get();
-  navbar->addWidget(std::move(puzzleUploadBtnPtr), Wt::AlignmentFlag::Left);
-  navbar->addWidget(std::make_unique<Wt::WLineEdit>(), Wt::AlignmentFlag::Left);
-  navbar->addWidget(std::make_unique<Wt::WPushButton>(Wt::utf8("Go")), Wt::AlignmentFlag::Left);
-  navbar->addWidget(std::make_unique<Wt::WPushButton>(Wt::utf8("Next")), Wt::AlignmentFlag::Right);
-
-  auto puzzle = Wt::Dbo::make_ptr<Puzzle>();
-  puzzle.modify()->path = "/puzzle.jpg";
-  puzzle.modify()->rotation = Rotation::Clockwise90;
-  puzzle.modify()->width = 3000;
-  puzzle.modify()->height = 4000;
-  puzzle.modify()->rows_.push_back(Puzzle::Row{});
-  auto &rows = puzzle.modify()->rows_.back();
-  rows.push_back(Cell { Wt::WRectF(10, 10, 30, 30), Character::A, 0 });
+  topbar->bindNew<Wt::WPushButton>("prev-btn", Wt::utf8("Previous"));
+  auto puzzleUploadBtn = topbar->bindNew<Wt::WPushButton>("upload-btn", Wt::utf8("Upload new puzzle"));
+  topbar->bindNew<Wt::WLineEdit>("current-puzzle-edit");
+  topbar->bindNew<Wt::WPushButton>("go-btn", Wt::utf8("Go"));
+  topbar->bindNew<Wt::WPushButton>("next-btn", Wt::utf8("Next"));
 
   auto puzzleContainer = rightLayout_->addWidget(std::make_unique<Wt::WContainerWidget>(), 1);
-  auto puzzleView = puzzleContainer->addNew<PuzzleView>(puzzle);
+  auto puzzleView = puzzleContainer->addNew<PuzzleView>(puzzle, PuzzleViewType::SolvePuzzle);
   puzzleView->resize(Wt::WLength(100, Wt::LengthUnit::Percentage),
                      Wt::WLength(100, Wt::LengthUnit::Percentage));
 

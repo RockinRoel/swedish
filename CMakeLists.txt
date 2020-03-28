@@ -13,6 +13,7 @@ add_executable(
   swedish.wt
   src/main.cpp
   src/Application.h src/Application.cpp
+  src/Direction.h
   src/Dispatcher.h src/Dispatcher.cpp
   src/GlobalSession.h src/GlobalSession.cpp
   src/Layout.h src/Layout.cpp

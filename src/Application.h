@@ -26,6 +26,13 @@ public:
   virtual void initialize() override;
   virtual void finalize() override;
 
+  long long user() const { return user_; }
+  GlobalSession *globalSession() { return globalSession_; }
+  Dispatcher *dispatcher() { return dispatcher_; }
+  Subscriber *subscriber() { return &subscriber_; }
+
+  static Application *instance() { return dynamic_cast<Application *>(Wt::WApplication::instance()); }
+
 private:
   Session session_;
   GlobalSession *globalSession_;

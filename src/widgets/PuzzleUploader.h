@@ -20,9 +20,8 @@ private:
   class ConfirmationView;
 
   View *view_ = nullptr;
-  Wt::WImage *image_;
 
-  Wt::WTemplate *impl();
+  Wt::WStackedWidget *impl();
   void handleClicked(const Wt::WMouseEvent &evt);
   std::shared_ptr<Wt::WRasterImage> createImage(Rotation rotation) const;
   static std::shared_ptr<Wt::WRasterImage> fillImage(std::shared_ptr<Wt::WRasterImage> image,

@@ -55,7 +55,7 @@ struct Cell final {
   Character character_ = Character::None;
   long long user_ = -1;
 
-  inline bool empty() const noexcept
+  inline bool isNull() const noexcept
   {
     return square.isNull();
   }
@@ -70,6 +70,9 @@ public:
 
   using Row = std::vector<Cell>;
   std::vector<Row> rows_;
+
+  Cell &cell(int row, int col) { return rows_[static_cast<std::size_t>(row)][static_cast<std::size_t>(col)]; }
+  const Cell &cell(int row, int col) const { return rows_[static_cast<std::size_t>(row)][static_cast<std::size_t>(col)]; }
 
   template<typename Action>
   void persist(Action &a)

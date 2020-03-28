@@ -1,5 +1,21 @@
 <messages>
-    <message id="tpl.swedish.puzzle_uploader">
-        ${puzzle_image}
+    <message id="tpl.swedish.topbar">
+        <div class="navbar navbar-default">
+            <div class="container-fluid">
+                ${prev-btn class="navbar-left navbar-btn"}
+                <div class="navbar-form navbar-left">
+                    <div class="input-group">
+                        <span class="input-group-addon">Current puzzle:</span>
+                        ${current-puzzle-edit}
+                        <span class="input-group-btn">
+                            ${go-btn}
+                        </span>
+                    </div>
+                </div>
+                ${upload-btn class="navbar-left navbar-btn"}
+                ${next-btn class="navbar-right navbar-btn"}
+            </div>
+        </div>
     </message>
+    <!-- ${prev-btn} ${upload-btn} ${current-puzzle-edit} ${go-btn} ${next-btn} -->
 </messages>

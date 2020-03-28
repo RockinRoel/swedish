@@ -6,6 +6,7 @@
 #include <Wt/WBrush.h>
 #include <Wt/WColor.h>
 #include <Wt/WContainerWidget.h>
+#include <Wt/WFileUpload.h>
 #include <Wt/WImage.h>
 #include <Wt/WPaintedWidget.h>
 #include <Wt/WPainter.h>
@@ -13,6 +14,7 @@
 #include <Wt/WPointF.h>
 #include <Wt/WRasterImage.h>
 #include <Wt/WRectF.h>
+#include <Wt/WStackedWidget.h>
 #include <Wt/WTemplate.h>
 #include <Wt/WTransform.h>
 
@@ -213,6 +215,9 @@ class PuzzleUploader::UploadView final : public View {
 public:
   UploadView(PuzzleUploader *uploader);
   virtual ~UploadView() override;
+
+private:
+  Wt::WFileUpload *fileUpload_;
 };
 
 class PuzzleUploader::SelectCellView final : public View {
@@ -235,13 +240,15 @@ public:
 
 PuzzleUploader::View::View(PuzzleUploader *uploader)
   : uploader_(uploader)
-{ }
+{
+}
 
 PuzzleUploader::View::~View()
 { }
 
 PuzzleUploader::UploadView::UploadView(PuzzleUploader *uploader)
-  : View(uploader)
+  : View(uploader),
+    fileUpload_(addNew<Wt::WFileUpload>())
 { }
 
 PuzzleUploader::UploadView::~UploadView()
@@ -269,27 +276,27 @@ PuzzleUploader::ConfirmationView::~ConfirmationView()
 { }
 
 PuzzleUploader::PuzzleUploader()
-  : Wt::WCompositeWidget(std::make_unique<Wt::WTemplate>(tr("tpl.swedish.puzzle_uploader"))),
-    image_(impl()->bindNew<Wt::WImage>("puzzle_image"))
+  : Wt::WCompositeWidget(std::make_unique<Wt::WStackedWidget>())
 {
-  auto img = createImage(Rotation::Clockwise90);
-  image_->setImageLink(Wt::WLink(img));
+  Wt::WAnimation animation(Wt::AnimationEffect::SlideInFromRight,
+                           Wt::TimingFunction::EaseInOut);
+  impl()->setTransitionAnimation(animation, true);
 
-  image_->clicked().connect(this, &PuzzleUploader::handleClicked);
+  impl()->addNew<UploadView>(this);
 }
 
 PuzzleUploader::~PuzzleUploader()
 { }
 
-Wt::WTemplate *PuzzleUploader::impl()
+Wt::WStackedWidget *PuzzleUploader::impl()
 {
-  return static_cast<Wt::WTemplate*>(implementation());
+  return static_cast<Wt::WStackedWidget*>(implementation());
 }
 
 void PuzzleUploader::handleClicked(const Wt::WMouseEvent &evt)
 {
   auto img = fillImage(createImage(Rotation::Clockwise90), Wt::WPointF(evt.widget().x, evt.widget().y));
-  image_->setImageLink(Wt::WLink(img));
+  // image_->setImageLink(Wt::WLink(img));
 }
 
 std::shared_ptr<Wt::WRasterImage> PuzzleUploader::createImage(Rotation rotation) const

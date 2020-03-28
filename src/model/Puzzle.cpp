@@ -26,7 +26,7 @@ std::string_view charToStr(Character character)
   case Character::None:
     return ""sv;
   case Character::IJ:
-    return "ij"sv;
+    return "IJ"sv;
   default:
     return alphabet.substr(static_cast<std::uint8_t>(character) - 1, 1);
   }
@@ -36,7 +36,7 @@ Character strToChar(std::string_view str)
 {
   if (str.empty())
     return Character::None;
-  else if (str == "ij"sv)
+  else if (str == "IJ"sv)
     return Character::IJ;
   else if (str.size() == 1 &&
            str[0] >= 'A' &&
@@ -60,7 +60,7 @@ Wt::Json::Object Puzzle::encodeJson() const
     json_rows.push_back(Wt::Json::Value(Wt::Json::Type::Array));
     Wt::Json::Array &json_row = json_rows.back();
     for (const Cell &cell : row) {
-      if (cell.empty()) {
+      if (cell.isNull()) {
         json_row.push_back(Wt::Json::Value(Wt::Json::Type::Null));
       } else {
         json_row.push_back(Wt::Json::Value(Wt::Json::Type::Object));
