@@ -121,10 +121,8 @@ void PuzzleView::TextLayer::paintEvent(Wt::WPaintDevice *paintDevice)
 {
   Wt::WPainter painter(paintDevice);
 
-  painter.scale(zoom(), zoom());
-
   painter.setPen(Wt::WPen(Wt::PenStyle::None));
-  painter.setBrush(Wt::WBrush(Wt::StandardColor::Red));
+  painter.setBrush(Wt::WBrush(Wt::BrushStyle::None));
 
   Wt::WFont font;
   font.setFamily(Wt::FontFamily::SansSerif);
@@ -141,33 +139,52 @@ void PuzzleView::TextLayer::paintEvent(Wt::WPaintDevice *paintDevice)
       const double minSize = std::min(square.width(), square.height());
 
       if (std::make_pair(static_cast<int>(r), static_cast<int>(c)) == puzzleView_->selectedCell_) {
-        painter.save();
-
-        const Wt::WColor cellColor(150, 150, 150, 150);
-        painter.setBrush(Wt::WBrush(cellColor));
+        Application *app = Application::instance();
+        const auto &users = Application::instance()->users();
+        const long long userId = app->user();
+        const auto it = std::find_if(std::begin(users), std::end(users), [userId](const auto &user) {
+          return user.id == userId;
+        });
+        if (it == std::end(users)) {
+          painter.setPen(Wt::WPen(Wt::StandardColor::Black));
+        } else {
+          painter.setPen(Wt::WPen(it->color));
+        }
+        painter.setBrush(Wt::BrushStyle::None);
 
         const Wt::WPointF center = square.center();
-        const double diameter = minSize * 0.8;
-        painter.drawEllipse(Wt::WRectF(center.x() - diameter / 2.0,
-                                       center.y() - diameter / 2.0,
-                                       diameter,
-                                       diameter));
-
-        painter.restore();
+        const double diameter = minSize * zoom();
+        painter.drawRect(Wt::WRectF(center.x() * zoom() - diameter / 2.0,
+                                    center.y() * zoom() - diameter / 2.0,
+                                    diameter,
+                                    diameter));
       }
 
       if (puzzleView_->type_ == PuzzleViewType::SolvePuzzle) {
         GlobalSession * const session = Application::instance()->globalSession();
-        auto [ch, userId] = session->charAt(puzzle()->id(), { static_cast<int>(r), static_cast<int>(c) });
-        // TODO(Roel): coloring depending on userid!
+        const std::pair<Character, long long> val = session->charAt(puzzle()->id(), { static_cast<int>(r), static_cast<int>(c) });
+        const Character ch = val.first;
+        const long long userId = val.second;
+
 
         if (ch != Character::None) {
-          std::string str(charToStr(ch));
-
-          font.setSize(Wt::WLength(0.7 * minSize));
+          font.setSize(Wt::WLength(0.7 * minSize * zoom()));
           painter.setFont(font);
 
-          painter.drawText(square,
+          const auto &users = Application::instance()->users();
+          const auto it = std::find_if(std::begin(users), std::end(users), [userId](const auto &user) {
+            return user.id == userId;
+          });
+          if (it == std::end(users)) {
+            painter.setPen(Wt::WPen(Wt::StandardColor::Black));
+          } else {
+            painter.setPen(Wt::WPen(it->color));
+          }
+          painter.setBrush(Wt::BrushStyle::None);
+
+          std::string str(charToStr(ch));
+
+          painter.drawText(Wt::WTransform().scale(zoom(), zoom()).map(square),
                            Wt::AlignmentFlag::Center |
                            Wt::AlignmentFlag::Middle,
                            Wt::TextFlag::SingleLine,
@@ -277,6 +294,11 @@ PuzzleView::PuzzleView(const Wt::Dbo::ptr<Puzzle> &puzzle,
 PuzzleView::~PuzzleView()
 { }
 
+void PuzzleView::update()
+{
+  textLayer_->update();
+}
+
 Wt::WContainerWidget *PuzzleView::impl()
 {
   return static_cast<Wt::WContainerWidget *>(implementation());
@@ -344,8 +366,6 @@ void PuzzleView::handleClick(const Wt::WMouseEvent &evt)
 
 void PuzzleView::handleKeyWentDown(const Wt::WKeyEvent &evt)
 {
-  std::cout << "KEY WENT DOWN!\n";
-
   if (selectedCell_ == std::make_pair(-1, -1)) {
     return;
   }

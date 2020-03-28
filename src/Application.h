@@ -14,6 +14,8 @@
 
 namespace swedish {
 
+class PuzzleView;
+
 class Application final : public Wt::WApplication {
 public:
   Application(const Wt::WEnvironment &env,
@@ -27,6 +29,7 @@ public:
   virtual void finalize() override;
 
   long long user() const { return user_; }
+  const std::vector<UserCopy> &users() { return users_; }
   GlobalSession *globalSession() { return globalSession_; }
   Dispatcher *dispatcher() { return dispatcher_; }
   Subscriber *subscriber() { return &subscriber_; }
@@ -44,6 +47,7 @@ private:
   Wt::WContainerWidget *userList_;
   long long user_;
   std::vector<UserCopy> users_;
+  PuzzleView *puzzleView_;
 
   std::unique_ptr<Wt::WPanel> createChangeColorPanel(const Wt::WColor &color);
 

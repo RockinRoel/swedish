@@ -24,6 +24,8 @@ public:
              PuzzleViewType type);
   virtual ~PuzzleView() override;
 
+  void update();
+
 private:
   class Layer;
   class PuzzlePaintedWidget;

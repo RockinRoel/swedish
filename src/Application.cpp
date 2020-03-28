@@ -42,13 +42,13 @@ Application::Application(const Wt::WEnvironment &env,
     rightLayout_(nullptr),
     left_(nullptr),
     userList_(nullptr),
-    user_(-1)
+    user_(-1),
+    puzzleView_(nullptr)
 {
   enableUpdates();
 
   subscriber_.userAdded().connect(this, &Application::handleUserAdded);
   subscriber_.userChangedColor().connect(this, &Application::handleUserChangedColor);
-  subscriber_.cellValueChanged().connect(this, &Application::handleCellValueChanged);
 
   messageResourceBundle().use(appRoot() + "template");
   useStyleSheet("/css/style.css");
@@ -110,9 +110,9 @@ Application::Application(const Wt::WEnvironment &env,
   topbar->bindNew<Wt::WPushButton>("next-btn", Wt::utf8("Next"));
 
   auto puzzleContainer = rightLayout_->addWidget(std::make_unique<Wt::WContainerWidget>(), 1);
-  auto puzzleView = puzzleContainer->addNew<PuzzleView>(puzzle, PuzzleViewType::SolvePuzzle);
-  puzzleView->resize(Wt::WLength(100, Wt::LengthUnit::Percentage),
-                     Wt::WLength(100, Wt::LengthUnit::Percentage));
+  puzzleView_ = puzzleContainer->addNew<PuzzleView>(puzzle, PuzzleViewType::SolvePuzzle);
+  puzzleView_->resize(Wt::WLength(100, Wt::LengthUnit::Percentage),
+                      Wt::WLength(100, Wt::LengthUnit::Percentage));
 
   auto chooseUserDialog = addChild(std::make_unique<Wt::WDialog>(Wt::utf8("Choose user")));
 
@@ -147,13 +147,12 @@ Application::Application(const Wt::WEnvironment &env,
       user->name = name;
       user->color = color;
       auto userPtr = session_.add(std::move(user));
+      session_.flush();
       user_ = userPtr.id();
     }
     dispatcher_->notifyUserAdded(&subscriber_, user_, name, color);
-    auto c = userList_->addNew<Wt::WContainerWidget>();
-    c->addNew<Wt::WText>(name, Wt::TextFormat::Plain);
-    c->decorationStyle().setFont(font);
-    c->decorationStyle().setForegroundColor(color);
+    handleUserAdded(user_, name, color);
+    left_->addWidget(createChangeColorPanel(color));
     chooseUserDialog->done(Wt::DialogCode::Accepted);
   });
 
@@ -184,16 +183,6 @@ Application::~Application()
 
 void Application::initialize()
 {
-  {
-    Wt::Dbo::Transaction t(session_);
-
-    Wt::Dbo::collection<Wt::Dbo::ptr<User>> users = session_.find<User>();
-
-    for (auto user : users) {
-      users_.push_back({user.id(), user->name, user->color});
-    }
-  }
-
   dispatcher_->addSubsriber(&subscriber_);
 }
 
@@ -258,15 +247,15 @@ void Application::handleUserChangedColor(long long id,
 
   it->color = color;
 
-  // TODO(Roel): visual update!
-}
+  int userIdx = static_cast<int>(std::distance(begin(users_), it));
+  auto w = userList_->widget(userIdx);
+  w->decorationStyle().setForegroundColor(color);
 
-void Application::handleCellValueChanged(long long puzzleId,
-                                         std::pair<int, int> cellRef)
-{
-  std::pair<Character, long long> cell = globalSession_->charAt(puzzleId, cellRef);
+  if (puzzleView_) {
+    puzzleView_->update();
+  }
 
-  // TODO(Roel): visual update!
+  triggerUpdate();
 }
 
 }
