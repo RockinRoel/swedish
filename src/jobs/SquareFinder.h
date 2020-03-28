@@ -2,7 +2,6 @@
 #define SWEDISH_SQUAREFINDER_H_
 
 #include "../Rotation.h"
-#include "../model/Square.h"
 #include "../model/Puzzle.h"
 
 #include <Wt/WSignal.h>
@@ -33,9 +32,12 @@ public:
 
   Wt::Signal<Status> &statusChanged() { return statusChanged_; }
 
-  const std::vector<Square> &squares() const { return squares_; }
-
 private:
+  struct Square {
+    Wt::WRectF rect;
+    int row = 0, col = 0;
+  };
+
   Puzzle &puzzle_;
   std::thread thread_;
   std::promise<void> stopSignal_;

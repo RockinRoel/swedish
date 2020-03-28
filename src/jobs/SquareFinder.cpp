@@ -208,7 +208,7 @@ void SquareFinder::determineSquares(const std::vector<unsigned char> &buf,
         cur_y >= h - 1)
       continue;
 
-    auto it = std::find_if(begin(squares_), end(squares_), [point=Wt::WPointF(cur_x, cur_y)](const swedish::Square &other) {
+    auto it = std::find_if(begin(squares_), end(squares_), [point=Wt::WPointF(cur_x, cur_y)](const Square &other) {
       return other.rect.contains(point);
     });
     if (it != end(squares_))

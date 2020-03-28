@@ -22,10 +22,6 @@ private:
   View *view_ = nullptr;
 
   Wt::WStackedWidget *impl();
-  void handleClicked(const Wt::WMouseEvent &evt);
-  std::shared_ptr<Wt::WRasterImage> createImage(Rotation rotation) const;
-  static std::shared_ptr<Wt::WRasterImage> fillImage(std::shared_ptr<Wt::WRasterImage> image,
-                                                     const Wt::WPointF &point);
 };
 
 }
