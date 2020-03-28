@@ -1,9 +1,12 @@
 #include "GlobalSession.h"
 
+#include <Wt/WLogger.h>
+
 #include <Wt/Dbo/Transaction.h>
 
 #include <algorithm>
 #include <chrono>
+#include <thread>
 
 using namespace std::chrono_literals;
 
@@ -15,23 +18,40 @@ constexpr const std::chrono::seconds interval = 3s;
 
 namespace swedish {
 
+// TODO(Roel): cleanly terminate global sync???
+
 GlobalSession::GlobalSession(Wt::WIOService *ioService,
                              std::unique_ptr<Wt::Dbo::SqlConnection> conn)
   : ioService_(ioService),
     timer_(*ioService_),
-    session_(std::move(conn))
+    session_(std::move(conn)),
+    terminated_(false)
 {
+  try {
+    session_.createTables();
+  } catch (Wt::Dbo::Exception &e) {
+    Wt::log("info") << "swedish::GlobalSession" << ": Caught exception: " << e.what();
+    Wt::log("info") << "swedish::GlobalSession" << ": Assuming tables already exist and continuing";
+  }
+
   session_.setFlushMode(Wt::Dbo::FlushMode::Manual);
+
   timer_.expires_after(interval);
   timer_.async_wait(std::bind(&GlobalSession::timeout, this, std::placeholders::_1));
 }
 
 GlobalSession::~GlobalSession()
 {
-  timer_.cancel();
+  {
+    std::scoped_lock<std::mutex> lock(mutex_);
+    terminated_ = true;
+  }
+
+  Wt::log("info") << "GlobalSession" << ": in dtor, canceling timer";
 
   try {
-    sync();
+    Wt::log("info") << "GlobalSession" << ": last sync";
+    sync(true);
   } catch (...) {
     // TODO(Roel): error!
   }
@@ -40,6 +60,9 @@ GlobalSession::~GlobalSession()
 std::pair<Character, long long> GlobalSession::charAt(long long puzzle,
                                                       std::pair<int, int> cellRef)
 {
+  if (terminated_)
+    return { Character::None, -1 };
+
   std::scoped_lock<std::mutex> lock(mutex_);
 
   Wt::Dbo::ptr<Puzzle> puzzlePtr = getPuzzle(puzzle);
@@ -57,6 +80,9 @@ void GlobalSession::updateChar(long long puzzle,
                                Character character,
                                long long user)
 {
+  if (terminated_)
+    return;
+
   std::scoped_lock<std::mutex> lock(mutex_);
 
   Wt::Dbo::ptr<Puzzle> puzzlePtr = getPuzzle(puzzle);
@@ -89,18 +115,25 @@ Wt::Dbo::ptr<Puzzle> GlobalSession::getPuzzle(long long puzzle)
 
 void GlobalSession::timeout(boost::system::error_code errc)
 {
-  if (errc)
+  if (terminated_ || errc)
     return;
 
-  sync();
+  sync(false);
 
-  timer_.expires_after(interval);
-  timer_.async_wait(std::bind(&GlobalSession::timeout, this, std::placeholders::_1));
+  if (!terminated_) {
+    timer_.expires_after(interval);
+    timer_.async_wait(std::bind(&GlobalSession::timeout, this, std::placeholders::_1));
+  }
 }
 
-void GlobalSession::sync()
+void GlobalSession::sync(bool last)
 {
+  Wt::log("info") << "GlobalSession" << ": performing global sync";
+
   std::scoped_lock<std::mutex> lock(mutex_);
+
+  if (terminated_ && !last)
+    return;
 
   Wt::Dbo::Transaction t(session_);
 

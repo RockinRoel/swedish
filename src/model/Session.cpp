@@ -1,7 +1,5 @@
 #include "Session.h"
 
-#include <Wt/WLogger.h>
-
 #include "Puzzle.h"
 #include "User.h"
 
@@ -28,13 +26,6 @@ void Session::init()
 {
   mapClass<Puzzle>("puzzles");
   mapClass<User>("users");
-
-  try {
-    createTables();
-  } catch (Wt::Dbo::Exception &e) {
-    Wt::log("info") << "swedish::Session" << ": Caught exception: " << e.what();
-    Wt::log("info") << "swedish::Session" << ": Assuming tables already exist and continuing";
-  }
 }
 
 }

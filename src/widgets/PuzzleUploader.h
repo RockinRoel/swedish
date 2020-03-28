@@ -13,6 +13,13 @@ public:
   virtual ~PuzzleUploader() override;
 
 private:
+  class View;
+  class UploadView;
+  class SelectCellView;
+  class ProcessingView;
+  class ConfirmationView;
+
+  View *view_ = nullptr;
   Wt::WImage *image_;
 
   Wt::WTemplate *impl();

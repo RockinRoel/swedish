@@ -5,6 +5,8 @@
 
 #include <Wt/WCompositeWidget.h>
 
+#include <array>
+
 namespace swedish {
 
 class PuzzleView final : public Wt::WCompositeWidget {
@@ -13,14 +15,20 @@ public:
   virtual ~PuzzleView() override;
 
 private:
+  class Layer;
   class PuzzlePaintedWidget;
+  class TextLayer;
 
   Wt::Dbo::ptr<Puzzle> puzzle_;
-  PuzzlePaintedWidget *paintedWidget_;
+  PuzzlePaintedWidget *paintedWidget_ = nullptr;
+  TextLayer *textLayer_ = nullptr;
 
-  Wt::WPushButton *zoomInBtn_, *zoomOutBtn_;
+  Wt::WPushButton *zoomInBtn_ = nullptr, *zoomOutBtn_ = nullptr;
+  double zoom_ = 1.0;
 
   Wt::WContainerWidget *impl();
+  void zoomIn();
+  void zoomOut();
 };
 
 }

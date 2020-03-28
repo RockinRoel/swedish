@@ -1,0 +1,277 @@
+#include "Application.h"
+
+#include <Wt/WBootstrapTheme.h>
+#include <Wt/WBreak.h>
+#include <Wt/WContainerWidget.h>
+#include <Wt/WCssDecorationStyle.h>
+#include <Wt/WDialog.h>
+#include <Wt/WHBoxLayout.h>
+#include <Wt/WLabel.h>
+#include <Wt/WLength.h>
+#include <Wt/WLineEdit.h>
+#include <Wt/WNavigationBar.h>
+#include <Wt/WPanel.h>
+#include <Wt/WPushButton.h>
+#include <Wt/WRectF.h>
+#include <Wt/WString.h>
+#include <Wt/WText.h>
+#include <Wt/WVBoxLayout.h>
+
+#include <Wt/Dbo/Dbo.h>
+
+#include "model/Puzzle.h"
+#include "model/User.h"
+#include "widgets/ColorPicker.h"
+#include "widgets/PuzzleView.h"
+#include "widgets/PuzzleUploader.h"
+
+#include <memory>
+
+namespace swedish {
+
+Application::Application(const Wt::WEnvironment &env,
+                         Wt::Dbo::SqlConnectionPool &pool,
+                         GlobalSession *globalSession,
+                         Dispatcher *dispatcher)
+  : WApplication(env),
+    session_(pool),
+    globalSession_(globalSession),
+    dispatcher_(dispatcher),
+    subscriber_(sessionId()),
+    layout_(nullptr),
+    rightLayout_(nullptr),
+    left_(nullptr),
+    userList_(nullptr),
+    user_(-1)
+{
+  enableUpdates();
+
+  subscriber_.userAdded().connect(this, &Application::handleUserAdded);
+  subscriber_.userChangedColor().connect(this, &Application::handleUserChangedColor);
+  subscriber_.cellValueChanged().connect(this, &Application::handleCellValueChanged);
+
+  messageResourceBundle().use(appRoot() + "template");
+  useStyleSheet("/css/style.css");
+
+  auto theme = std::make_shared<Wt::WBootstrapTheme>();
+  theme->setVersion(Wt::BootstrapVersion::v3);
+  setTheme(theme);
+
+  layout_ = root()->setLayout(std::make_unique<Wt::WHBoxLayout>());
+  layout_->setContentsMargins(3, 3, 3, 3);
+  layout_->setSpacing(3);
+
+  left_ = layout_->addWidget(std::make_unique<Wt::WContainerWidget>(), 0);
+  left_->setWidth(Wt::WLength(300, Wt::LengthUnit::Pixel));
+
+  auto usersPanel = left_->addNew<Wt::WPanel>();
+  usersPanel->setTitle(Wt::utf8("Users"));
+
+  userList_ = usersPanel->setCentralWidget(std::make_unique<Wt::WContainerWidget>());
+  userList_->setList(true);
+
+  {
+    Wt::Dbo::Transaction t(session_);
+
+    Wt::Dbo::collection<Wt::Dbo::ptr<User>> users = session_.find<User>();
+
+    for (const auto &user: users) {
+      users_.push_back({user.id(), user->name, user->color});
+    }
+  }
+
+  Wt::WFont font;
+  font.setFamily(Wt::FontFamily::SansSerif);
+  font.setSize(16);
+  font.setWeight(Wt::FontWeight::Bold);
+  for (auto user : users_) {
+    auto c = userList_->addNew<Wt::WContainerWidget>();
+    c->addNew<Wt::WText>(user.name, Wt::TextFormat::Plain);
+    c->decorationStyle().setFont(font);
+    c->decorationStyle().setForegroundColor(user.color);
+  }
+
+  rightLayout_ = layout_->addLayout(std::make_unique<Wt::WVBoxLayout>(), 1);
+  rightLayout_->setContentsMargins(3, 3, 3, 3);
+  rightLayout_->setSpacing(3);
+
+  auto navbar = rightLayout_->addWidget(std::make_unique<Wt::WNavigationBar>());
+
+  navbar->addWidget(std::make_unique<Wt::WPushButton>(Wt::utf8("Previous")), Wt::AlignmentFlag::Left);
+  auto puzzleUploadBtnPtr = std::make_unique<Wt::WPushButton>(Wt::utf8("Upload new puzzle"));
+  auto puzzleUploadBtn = puzzleUploadBtnPtr.get();
+  navbar->addWidget(std::move(puzzleUploadBtnPtr), Wt::AlignmentFlag::Left);
+  navbar->addWidget(std::make_unique<Wt::WLineEdit>(), Wt::AlignmentFlag::Left);
+  navbar->addWidget(std::make_unique<Wt::WPushButton>(Wt::utf8("Go")), Wt::AlignmentFlag::Left);
+  navbar->addWidget(std::make_unique<Wt::WPushButton>(Wt::utf8("Next")), Wt::AlignmentFlag::Right);
+
+  auto puzzle = Wt::Dbo::make_ptr<Puzzle>();
+  puzzle.modify()->path = "/puzzle.jpg";
+  puzzle.modify()->rotation = Rotation::Clockwise90;
+  puzzle.modify()->width = 3000;
+  puzzle.modify()->height = 4000;
+  puzzle.modify()->rows_.push_back(Puzzle::Row{});
+  auto &rows = puzzle.modify()->rows_.back();
+  rows.push_back(Cell { Wt::WRectF(10, 10, 30, 30), Character::A, 0 });
+
+  auto puzzleContainer = rightLayout_->addWidget(std::make_unique<Wt::WContainerWidget>(), 1);
+  auto puzzleView = puzzleContainer->addNew<PuzzleView>(puzzle);
+  puzzleView->resize(Wt::WLength(100, Wt::LengthUnit::Percentage),
+                     Wt::WLength(100, Wt::LengthUnit::Percentage));
+
+  auto chooseUserDialog = addChild(std::make_unique<Wt::WDialog>(Wt::utf8("Choose user")));
+
+  for (auto user : users_) {
+    auto btn = chooseUserDialog->contents()->addNew<Wt::WPushButton>();
+    btn->setTextFormat(Wt::TextFormat::Plain);
+    btn->setText(user.name);
+    btn->decorationStyle().setForegroundColor(user.color);
+    btn->decorationStyle().setFont(font);
+    btn->clicked().connect([this, id=user.id, color=user.color, chooseUserDialog]{
+      user_ = id;
+      left_->addWidget(createChangeColorPanel(color));
+      chooseUserDialog->done(Wt::DialogCode::Accepted);
+    });
+  }
+
+  chooseUserDialog->contents()->addNew<Wt::WBreak>();
+
+  auto newUserLabel = chooseUserDialog->contents()->addNew<Wt::WLabel>(Wt::utf8("New user: "));
+  auto newUserName = chooseUserDialog->contents()->addNew<Wt::WLineEdit>();
+  newUserLabel->setBuddy(newUserName);
+  auto newUserColor = chooseUserDialog->contents()->addNew<ColorPicker>();
+  auto newUserButton = chooseUserDialog->contents()->addNew<Wt::WPushButton>(Wt::utf8("Create"));
+
+  newUserButton->clicked().connect([this,newUserName,newUserColor,chooseUserDialog,font]{
+    Wt::WString name = newUserName->valueText();
+    Wt::WColor color = newUserColor->pickedColor();
+    {
+      Wt::Dbo::Transaction t(session_);
+
+      auto user = std::make_unique<User>();
+      user->name = name;
+      user->color = color;
+      auto userPtr = session_.add(std::move(user));
+      user_ = userPtr.id();
+    }
+    dispatcher_->notifyUserAdded(&subscriber_, user_, name, color);
+    auto c = userList_->addNew<Wt::WContainerWidget>();
+    c->addNew<Wt::WText>(name, Wt::TextFormat::Plain);
+    c->decorationStyle().setFont(font);
+    c->decorationStyle().setForegroundColor(color);
+    chooseUserDialog->done(Wt::DialogCode::Accepted);
+  });
+
+  chooseUserDialog->finished().connect([this, chooseUserDialog]{
+    removeChild(chooseUserDialog);
+  });
+
+  chooseUserDialog->show();
+
+  puzzleUploadBtn->clicked().connect([this]{
+    auto dialog = addChild(std::make_unique<Wt::WDialog>(Wt::utf8("Upload new puzzle")));
+    dialog->resize(Wt::WLength(70, Wt::LengthUnit::ViewportWidth),
+                   Wt::WLength(70, Wt::LengthUnit::ViewportHeight));
+    dialog->setResizable(true);
+    dialog->setClosable(true);
+    dialog->contents()->setOverflow(Wt::Overflow::Auto);
+    dialog->contents()->addNew<PuzzleUploader>();
+    dialog->show();
+
+    dialog->finished().connect([this, dialog]{
+      removeChild(dialog);
+    });
+  });
+}
+
+Application::~Application()
+{ }
+
+void Application::initialize()
+{
+  {
+    Wt::Dbo::Transaction t(session_);
+
+    Wt::Dbo::collection<Wt::Dbo::ptr<User>> users = session_.find<User>();
+
+    for (auto user : users) {
+      users_.push_back({user.id(), user->name, user->color});
+    }
+  }
+
+  dispatcher_->addSubsriber(&subscriber_);
+}
+
+void Application::finalize()
+{
+  dispatcher_->removeSubscriber(&subscriber_);
+}
+
+std::unique_ptr<Wt::WPanel> Application::createChangeColorPanel(const Wt::WColor &color)
+{
+  auto changeColorPanel = std::make_unique<Wt::WPanel>();
+  changeColorPanel->setTitle(Wt::utf8("Change color"));
+
+  auto changeColorContainer = changeColorPanel->setCentralWidget(std::make_unique<Wt::WContainerWidget>());
+  auto colorPicker = changeColorContainer->addNew<ColorPicker>(color);
+  auto changeColorButton = changeColorContainer->addNew<Wt::WPushButton>(Wt::utf8("Update"));
+
+  changeColorButton->clicked().connect([this ,colorPicker]{
+    Wt::WColor color = colorPicker->pickedColor();
+
+    {
+      Wt::Dbo::Transaction t(session_);
+
+      auto user = session_.load<User>(user_);
+      user.modify()->color = color;
+    }
+
+    dispatcher_->notifyUserChangedColor(&subscriber_, user_, color);
+
+    handleUserChangedColor(user_, color);
+  });
+
+  return changeColorPanel;
+}
+
+void Application::handleUserAdded(long long id,
+                                  const Wt::WString &name,
+                                  const Wt::WColor &color)
+{
+  users_.push_back({id, name, color});
+
+  Wt::WFont font;
+  font.setFamily(Wt::FontFamily::SansSerif);
+  font.setSize(16);
+  font.setWeight(Wt::FontWeight::Bold);
+  auto c = userList_->addNew<Wt::WContainerWidget>();
+  c->addNew<Wt::WText>(name, Wt::TextFormat::Plain);
+  c->decorationStyle().setFont(font);
+  c->decorationStyle().setForegroundColor(color);
+
+  triggerUpdate();
+}
+
+void Application::handleUserChangedColor(long long id,
+                                         const Wt::WColor &color)
+{
+  auto it = std::find_if(begin(users_), end(users_), [id](const UserCopy &user){
+    return user.id == id;
+  });
+  if (it == end(users_))
+    return; // TODO(Roel): error!
+
+  it->color = color;
+
+  // TODO(Roel): visual update!
+}
+
+void Application::handleCellValueChanged(long long puzzleId,
+                                         std::pair<int, int> cellRef)
+{
+  std::pair<Character, long long> cell = globalSession_->charAt(puzzleId, cellRef);
+
+  // TODO(Roel): visual update!
+}
+
+}

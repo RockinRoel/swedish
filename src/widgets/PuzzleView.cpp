@@ -1,10 +1,17 @@
 #include "PuzzleView.h"
 
+#include "../UserCopy.h"
+
 #include <Wt/WApplication.h>
+#include <Wt/WBrush.h>
+#include <Wt/WColor.h>
 #include <Wt/WContainerWidget.h>
+#include <Wt/WLength.h>
 #include <Wt/WPaintedWidget.h>
 #include <Wt/WPainter.h>
+#include <Wt/WPen.h>
 #include <Wt/WPushButton.h>
+#include <Wt/WVBoxLayout.h>
 
 #include <Wt/Dbo/Dbo.h>
 
@@ -20,28 +27,47 @@ constexpr const double min_zoom = 0.1;
 
 namespace swedish {
 
-class PuzzleView::PuzzlePaintedWidget final : public Wt::WPaintedWidget {
+class PuzzleView::Layer : public Wt::WPaintedWidget {
+public:
+  Layer(PuzzleView *puzzleView);
+  virtual ~Layer() override;
+
+  double zoom() const { return puzzleView_->zoom_; }
+  const Puzzle *puzzle() const { return puzzleView_->puzzle_.get(); }
+
+protected:
+  PuzzleView *puzzleView_;
+};
+
+class PuzzleView::PuzzlePaintedWidget final : public PuzzleView::Layer {
 public:
   PuzzlePaintedWidget(PuzzleView *puzzleView);
   virtual ~PuzzlePaintedWidget() override;
 
-  void zoomIn();
-  void zoomOut();
+protected:
+  virtual void paintEvent(Wt::WPaintDevice *paintDevice) override;
+};
+
+class PuzzleView::TextLayer final : public PuzzleView::Layer {
+public:
+  TextLayer(PuzzleView * puzzleView);
+  virtual ~TextLayer() override;
 
 protected:
   virtual void paintEvent(Wt::WPaintDevice *paintDevice) override;
-
-private:
-  PuzzleView *puzzleView_;
-  double zoom_;
 };
 
+PuzzleView::Layer::Layer(PuzzleView *puzzleView)
+  : puzzleView_(puzzleView)
+{ }
+
+PuzzleView::Layer::~Layer()
+{ }
+
 PuzzleView::PuzzlePaintedWidget::PuzzlePaintedWidget(PuzzleView *puzzleView)
-  : puzzleView_(puzzleView),
-    zoom_(1.0)
+  : Layer(puzzleView)
 {
   auto puzzle = puzzleView->puzzle_;
-  resize(puzzle->width, puzzle->height);
 }
 
 PuzzleView::PuzzlePaintedWidget::~PuzzlePaintedWidget()
@@ -57,7 +83,7 @@ void PuzzleView::PuzzlePaintedWidget::paintEvent(Wt::WPaintDevice *paintDevice)
   const int w = puzzle->width;
   const int h = puzzle->height;
 
-  painter.scale(zoom_, zoom_);
+  painter.scale(zoom(), zoom());
 
   if (rotation == Rotation::Clockwise90) {
     painter.translate(w, 0);
@@ -76,42 +102,75 @@ void PuzzleView::PuzzlePaintedWidget::paintEvent(Wt::WPaintDevice *paintDevice)
   painter.drawImage(Wt::WPointF(0.0, 0.0), img);
 }
 
-void PuzzleView::PuzzlePaintedWidget::zoomIn()
+PuzzleView::TextLayer::TextLayer(PuzzleView *puzzleView)
+  : Layer(puzzleView)
 {
-  zoom_ = std::min(zoom_ + 0.1, max_zoom);
-
-  resize(puzzleView_->puzzle_->width * zoom_,
-         puzzleView_->puzzle_->height * zoom_);
-
-  update();
+  setPositionScheme(Wt::PositionScheme::Absolute);
+  setOffsets(Wt::WLength(0, Wt::LengthUnit::Pixel), Wt::Side::Top | Wt::Side::Left);
 }
 
-void PuzzleView::PuzzlePaintedWidget::zoomOut()
+PuzzleView::TextLayer::~TextLayer()
+{ }
+
+void PuzzleView::TextLayer::paintEvent(Wt::WPaintDevice *paintDevice)
 {
-  zoom_ = std::max(zoom_ - 0.1, min_zoom);
+  Wt::WPainter painter(paintDevice);
 
-  resize(puzzleView_->puzzle_->width * zoom_,
-         puzzleView_->puzzle_->height * zoom_);
+  painter.scale(zoom(), zoom());
 
-  update();
+  painter.setPen(Wt::WPen(Wt::PenStyle::None));
+  painter.setBrush(Wt::WBrush(Wt::StandardColor::Red));
+
+  Wt::WFont font;
+  font.setFamily(Wt::FontFamily::SansSerif);
+
+  for (const auto &row : puzzle()->rows_) {
+    for (const auto &cell : row) {
+      if (cell.empty()) {
+        continue;
+      }
+
+      const Wt::WRectF &square = cell.square;
+      std::string str(charToStr(cell.character_));
+
+      double minSize = std::min(square.width(), square.height());
+      font.setSize(Wt::WLength(0.7 * minSize));
+      painter.setFont(font);
+
+      painter.drawText(square,
+                       Wt::AlignmentFlag::Center |
+                       Wt::AlignmentFlag::Middle,
+                       Wt::TextFlag::SingleLine,
+                       Wt::utf8(str));
+    }
+  }
 }
 
 PuzzleView::PuzzleView(const Wt::Dbo::ptr<Puzzle> &puzzle)
   : Wt::WCompositeWidget(std::make_unique<Wt::WContainerWidget>()),
-    puzzle_(puzzle),
-    paintedWidget_(impl()->addNew<PuzzlePaintedWidget>(this)),
-    zoomInBtn_(impl()->addNew<Wt::WPushButton>()),
-    zoomOutBtn_(impl()->addNew<Wt::WPushButton>())
+    puzzle_(puzzle)
 {
   Wt::WApplication *app = Wt::WApplication::instance();
   app->useStyleSheet(Wt::WApplication::relativeResourcesUrl() +
                      "font-awesome/css/font-awesome.min.css");
 
-  impl()->setPositionScheme(Wt::PositionScheme::Relative);
-  impl()->setOverflow(Wt::Overflow::Auto);
+  auto layout = impl()->setLayout(std::make_unique<Wt::WVBoxLayout>());
+  layout->setContentsMargins(0, 0, 0, 0);
+  layout->setSpacing(3);
 
-  zoomInBtn_->setPositionScheme(Wt::PositionScheme::Fixed);
-  zoomOutBtn_->setPositionScheme(Wt::PositionScheme::Fixed);
+  auto top = layout->addWidget(std::make_unique<Wt::WContainerWidget>(), 0);
+  auto bottom = layout->addWidget(std::make_unique<Wt::WContainerWidget>(), 1);
+  bottom->setPositionScheme(Wt::PositionScheme::Relative);
+  bottom->setOverflow(Wt::Overflow::Auto);
+
+  paintedWidget_ = bottom->addNew<PuzzlePaintedWidget>(this);
+  textLayer_ = bottom->addNew<TextLayer>(this);
+
+  paintedWidget_->resize(puzzle->width, puzzle->height);
+  textLayer_->resize(puzzle->width, puzzle->height);
+
+  zoomInBtn_ = top->addNew<Wt::WPushButton>();
+  zoomOutBtn_ = top->addNew<Wt::WPushButton>();
 
   zoomInBtn_->setOffsets(10, Wt::Side::Top | Wt::Side::Left);
   zoomOutBtn_->setOffsets(10, Wt::Side::Left);
@@ -120,17 +179,12 @@ PuzzleView::PuzzleView(const Wt::Dbo::ptr<Puzzle> &puzzle)
   zoomInBtn_->setTextFormat(Wt::TextFormat::XHTML);
   zoomOutBtn_->setTextFormat(Wt::TextFormat::XHTML);
 
-  zoomInBtn_->setText(Wt::utf8("<i class=\"fa fa-search-plus\"></i>"));
-  zoomOutBtn_->setText(Wt::utf8("<i class=\"fa fa-search-minus\"></i>"));
+  zoomInBtn_->setText(Wt::utf8("<i class=\"fa fa-search-plus\"></i> zoom in"));
+  zoomOutBtn_->setText(Wt::utf8("<i class=\"fa fa-search-minus\"></i> zoom out"));
 
-  zoomInBtn_->clicked().connect([this]{
-    paintedWidget_->zoomIn();
-  });
-  zoomOutBtn_->clicked().connect([this]{
-    paintedWidget_->zoomOut();
-  });
+  zoomInBtn_->clicked().connect(this, &PuzzleView::zoomIn);
+  zoomOutBtn_->clicked().connect(this, &PuzzleView::zoomOut);
 
-  // TODO(Roel): zoom controls
   // TODO(Roel): other controls
   // TODO(Roel): clicked
 }
@@ -141,6 +195,30 @@ PuzzleView::~PuzzleView()
 Wt::WContainerWidget *PuzzleView::impl()
 {
   return static_cast<Wt::WContainerWidget *>(implementation());
+}
+
+void PuzzleView::zoomIn()
+{
+  zoom_ = std::min(zoom_ + 0.1, max_zoom);
+
+  paintedWidget_->resize(puzzle_->width * zoom_,
+                         puzzle_->height * zoom_);
+  textLayer_->resize(puzzle_->width * zoom_,
+                     puzzle_->height * zoom_);
+
+  paintedWidget_->update();
+}
+
+void PuzzleView::zoomOut()
+{
+  zoom_ = std::max(zoom_ - 0.1, min_zoom);
+
+  paintedWidget_->resize(puzzle_->width * zoom_,
+                         puzzle_->height * zoom_);
+  textLayer_->resize(puzzle_->width * zoom_,
+                     puzzle_->height * zoom_);
+
+  paintedWidget_->update();
 }
 
 }

@@ -12,10 +12,12 @@ find_package(Wt CONFIG REQUIRED COMPONENTS Wt HTTP Dbo DboPostgres)
 add_executable(
   swedish.wt
   src/main.cpp
+  src/Application.h src/Application.cpp
   src/Dispatcher.h src/Dispatcher.cpp
   src/GlobalSession.h src/GlobalSession.cpp
   src/Layout.h src/Layout.cpp
   src/Rotation.h
+  src/UserCopy.h
   src/jobs/SquareFinder.h src/jobs/SquareFinder.cpp
   src/model/User.h src/model/User.cpp
   src/model/Puzzle.h src/model/Puzzle.cpp

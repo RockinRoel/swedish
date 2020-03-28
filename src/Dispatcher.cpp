@@ -26,6 +26,7 @@ void Dispatcher::removeSubscriber(Subscriber *subscriber)
 }
 
 void Dispatcher::notifyUserAdded(Subscriber *self,
+                                 long long id,
                                  const Wt::WString &name,
                                  const Wt::WColor &color)
 {
@@ -34,14 +35,14 @@ void Dispatcher::notifyUserAdded(Subscriber *self,
   for (auto subscriber : subscribers_) {
     if (self == subscriber)
       continue;
-    server_->post(subscriber->sessionId(), [subscriber, name, color]{
-      subscriber->userAdded().emit(name, color);
+    server_->post(subscriber->sessionId(), [subscriber, id, name, color]{
+      subscriber->userAdded().emit(id, name, color);
     });
   }
 }
 
 void Dispatcher::notifyUserChangedColor(Subscriber *self,
-                                        const Wt::WString &name,
+                                        long long id,
                                         const Wt::WColor &color)
 {
   std::scoped_lock<std::mutex> lock(subscriberMutex_);
@@ -49,8 +50,8 @@ void Dispatcher::notifyUserChangedColor(Subscriber *self,
   for (auto subscriber : subscribers_) {
     if (self == subscriber)
       continue;
-    server_->post(subscriber->sessionId(), [subscriber, name, color]{
-      subscriber->userChangedColor().emit(name, color);
+    server_->post(subscriber->sessionId(), [subscriber, id, color]{
+      subscriber->userChangedColor().emit(id, color);
     });
   }
 }

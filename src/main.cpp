@@ -9,6 +9,8 @@
 
 #include <Wt/Dbo/backend/Postgres.h>
 
+#include "Application.h"
+#include "Dispatcher.h"
 #include "GlobalSession.h"
 
 #include "model/Puzzle.h"
@@ -19,35 +21,6 @@
 
 #include <memory>
 
-void testCreateDbAndOneUser(int argc, char *argv[]) {
-  Wt::Dbo::logToWt();
-
-  Wt::WServer server(argv[0]);
-
-  server.setServerConfiguration(argc, argv);
-
-  auto conn = std::make_unique<Wt::Dbo::backend::Postgres>(
-        "user=roel password=hypersecure port=5432 dbname=swedish host=10.1.0.45");
-
-  conn->setProperty("show-queries", "true");
-
-  swedish::Session session(std::move(conn));
-
-  {
-    Wt::Dbo::Transaction t(session);
-    auto user = session.addNew<swedish::User>();
-    user.modify()->name = "Roel";
-    user.modify()->color = Wt::WColor(Wt::StandardColor::Red);
-  }
-
-  {
-    Wt::Dbo::Transaction t(session);
-    auto user = session.find<swedish::User>().resultValue();
-
-    Wt::log("info") << user->color.cssText();
-  }
-}
-
 int main(int argc, char *argv[]) {
   using namespace swedish;
 
@@ -56,10 +29,11 @@ int main(int argc, char *argv[]) {
   Wt::WServer server(argv[0]);
 
   auto conn = std::make_unique<Wt::Dbo::backend::Postgres>(
-        "user=roel password=hypersecure port=5432 dbname=swedish host=10.1.0.45");
+        "user=swedish password=hypersecure port=5432 dbname=swedish host=127.0.0.1");
 
   GlobalSession globalSession(&server.ioService(),
                               conn->clone());
+  Dispatcher dispatcher(&server);
 
   conn->setProperty("show-queries", "true");
 
@@ -67,6 +41,7 @@ int main(int argc, char *argv[]) {
 
   server.setServerConfiguration(argc, argv);
 
+  /*
   server.addEntryPoint(Wt::EntryPointType::Application,
                        [](const Wt::WEnvironment &env) {
           auto app = std::make_unique<Wt::WApplication>(env);
@@ -84,6 +59,12 @@ int main(int argc, char *argv[]) {
           puzzleView->resize(500, 500);
 
           return app;
+  });
+  */
+
+  server.addEntryPoint(Wt::EntryPointType::Application,
+                       [&pool,&globalSession,&dispatcher](const Wt::WEnvironment &env) {
+    return std::make_unique<Application>(env, pool, &globalSession, &dispatcher);
   });
 
   server.run();

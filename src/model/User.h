@@ -8,8 +8,11 @@
 #include <Wt/Dbo/SqlConnection.h>
 #include <Wt/Dbo/SqlStatement.h>
 
+#include <cstdlib>
+#include <iomanip>
+#include <locale>
+#include <sstream>
 #include <string>
-#include <vector>
 
 namespace Wt {
 namespace Dbo {
@@ -19,31 +22,53 @@ struct sql_value_traits< ::Wt::WColor>
 {
   static std::string type(SqlConnection *conn, int size)
   {
-    return sql_value_traits<std::vector<unsigned char>>::type(conn, size);
+    return sql_value_traits<std::string>::type(conn, size);
   }
 
   static void bind(WColor c, SqlStatement *statement, int column, int size)
   {
-    std::vector<unsigned char> data = {
-      static_cast<unsigned char>(c.red()),
-      static_cast<unsigned char>(c.green()),
-      static_cast<unsigned char>(c.blue())
-    };
-    statement->bind(column, data);
+    (void)size;
+
+    std::ostringstream ss;
+    ss.imbue(std::locale::classic());
+    ss << std::hex
+       << std::uppercase
+       << std::setw(2)
+       << std::setfill('0')
+       << c.red();
+    ss << std::hex
+       << std::uppercase
+       << std::setw(2)
+       << std::setfill('0')
+       << c.green();
+    ss << std::hex
+       << std::uppercase
+       << std::setw(2)
+       << std::setfill('0')
+       << c.blue();
+
+    std::string s = ss.str();
+    statement->bind(column, s);
   }
 
   static bool read(WColor &c, SqlStatement *statement, int column, int size)
   {
-    std::vector<unsigned char> data;
-    data.reserve(3);
-    bool result = statement->getResult(column, &data, size);
+    std::string s;
+    s.reserve(6);
+    bool result = statement->getResult(column, &s, size);
     if (!result)
       return false;
-    assert(data.size() == 3); // TODO(Roel): not robust?
-    c = Wt::WColor(
-          static_cast<int>(data[0]),
-          static_cast<int>(data[1]),
-          static_cast<int>(data[2]));
+    assert(s.size() == 6); // TODO(Roel): not robust?
+    char *end = nullptr;
+    long rgb = std::strtol(s.c_str(), &end, 16);
+    if (end != &*s.end())
+      return false;
+
+    const int b = rgb & 0xFF;
+    const int g = (rgb >> 8) & 0xFF;
+    const int r = (rgb >> 16) & 0xFF;
+
+    c = Wt::WColor(r, g, b);
     return true;
   }
 };
@@ -55,7 +80,7 @@ namespace swedish {
 
 class User final : public Wt::Dbo::Dbo<User> {
 public:
-  std::string name;
+  Wt::WString name;
   Wt::WColor color;
 
   template<typename Action>

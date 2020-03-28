@@ -9,6 +9,7 @@
 #include <boost/asio/steady_timer.hpp>
 #include <boost/system/error_code.hpp>
 
+#include <atomic>
 #include <mutex>
 #include <utility>
 #include <vector>
@@ -21,6 +22,8 @@ public:
                 std::unique_ptr<Wt::Dbo::SqlConnection> conn);
 
   ~GlobalSession();
+
+  void terminate();
 
   std::pair<Character, long long> charAt(long long puzzle,
                                          std::pair<int, int> cellRef);
@@ -36,11 +39,12 @@ private:
   Session session_;
   std::mutex mutex_;
   std::vector<Wt::Dbo::ptr<Puzzle>> puzzles_;
+  std::atomic_bool terminated_;
 
   // NOTE: NEED LOCK BEFORE CALLING THIS
   Wt::Dbo::ptr<Puzzle> getPuzzle(long long puzzle);
   void timeout(boost::system::error_code errc);
-  void sync();
+  void sync(bool last);
 };
 
 }

@@ -25,11 +25,12 @@ public:
   void removeSubscriber(Subscriber *subscriber);
 
   void notifyUserAdded(Subscriber *self,
+                       long long id,
                        const Wt::WString &name,
                        const Wt::WColor &color);
 
   void notifyUserChangedColor(Subscriber *self,
-                              const Wt::WString &name,
+                              long long id,
                               const Wt::WColor &color);
 
   void notifyCellValueChanged(Subscriber *self,
@@ -49,14 +50,14 @@ public:
 
   const std::string & sessionId() const { return sessionId_; }
 
-  Wt::Signal<const Wt::WString &, const Wt::WColor &> &userAdded() { return userAdded_; }
-  Wt::Signal<const Wt::WString &, const Wt::WColor &> &userChangedColor() { return userChangedColor_; }
+  Wt::Signal<long long, const Wt::WString &, const Wt::WColor &> &userAdded() { return userAdded_; }
+  Wt::Signal<long long, const Wt::WColor &> &userChangedColor() { return userChangedColor_; }
   Wt::Signal<long long, std::pair<int, int>> &cellValueChanged() { return cellValueChanged_; }
 
 private:
   std::string sessionId_;
-  Wt::Signal<const Wt::WString &, const Wt::WColor &> userAdded_;
-  Wt::Signal<const Wt::WString &, const Wt::WColor &> userChangedColor_;
+  Wt::Signal<long long, const Wt::WString &, const Wt::WColor &> userAdded_;
+  Wt::Signal<long long, const Wt::WColor &> userChangedColor_;
   Wt::Signal<long long, std::pair<int, int>> cellValueChanged_;
 };
 

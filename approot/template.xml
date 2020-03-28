@@ -1,6 +1,4 @@
 <messages>
-    <message id="tpl.swedish.layout">
-    </message>
     <message id="tpl.swedish.puzzle_uploader">
         ${puzzle_image}
     </message>
