@@ -3,25 +3,40 @@
 
 #include "../Rotation.h"
 
-#include <Wt/WCompositeWidget.h>
+#include <Wt/WObject.h>
+#include <Wt/WSignal.h>
+
+#include <memory>
 
 namespace swedish {
 
-class PuzzleUploader final : public Wt::WCompositeWidget {
+class PuzzleUploader final : public Wt::WObject {
 public:
   PuzzleUploader();
   virtual ~PuzzleUploader() override;
 
+  Wt::Signal<> &done() { return done_; }
+
 private:
+  enum class State {
+    Upload,
+    SelectCell,
+    Processing,
+    Confirmation,
+    Done
+  };
+
   class View;
   class UploadView;
   class SelectCellView;
   class ProcessingView;
   class ConfirmationView;
 
-  View *view_ = nullptr;
+  std::unique_ptr<View> view_;
+  Wt::Signal<> done_;
+  State state_ = State::Upload;
 
-  Wt::WStackedWidget *impl();
+  void createStateView();
 };
 
 }

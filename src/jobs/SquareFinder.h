@@ -4,6 +4,7 @@
 #include "../Rotation.h"
 #include "../model/Puzzle.h"
 
+#include <Wt/WObject.h>
 #include <Wt/WSignal.h>
 
 #include <future>
@@ -15,7 +16,7 @@
 
 namespace swedish {
 
-class SquareFinder final {
+class SquareFinder final : public Wt::WObject {
 public:
   struct ReadingImage {};
   struct Processing {

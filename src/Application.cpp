@@ -163,17 +163,9 @@ Application::Application(const Wt::WEnvironment &env,
   chooseUserDialog->show();
 
   puzzleUploadBtn->clicked().connect([this]{
-    auto dialog = addChild(std::make_unique<Wt::WDialog>(Wt::utf8("Upload new puzzle")));
-    dialog->resize(Wt::WLength(70, Wt::LengthUnit::ViewportWidth),
-                   Wt::WLength(70, Wt::LengthUnit::ViewportHeight));
-    dialog->setResizable(true);
-    dialog->setClosable(true);
-    dialog->contents()->setOverflow(Wt::Overflow::Auto);
-    dialog->contents()->addNew<PuzzleUploader>();
-    dialog->show();
-
-    dialog->finished().connect([this, dialog]{
-      removeChild(dialog);
+    auto puzzleUploader = addChild(std::make_unique<PuzzleUploader>());
+    puzzleUploader->done().connect([this, puzzleUploader]{
+      removeChild(puzzleUploader);
     });
   });
 }

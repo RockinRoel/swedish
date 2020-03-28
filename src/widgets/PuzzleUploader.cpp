@@ -4,12 +4,14 @@
 #include <Wt/WBrush.h>
 #include <Wt/WColor.h>
 #include <Wt/WContainerWidget.h>
+#include <Wt/WDialog.h>
 #include <Wt/WFileUpload.h>
 #include <Wt/WImage.h>
 #include <Wt/WPaintedWidget.h>
 #include <Wt/WPainter.h>
 #include <Wt/WPen.h>
 #include <Wt/WPointF.h>
+#include <Wt/WPushButton.h>
 #include <Wt/WRasterImage.h>
 #include <Wt/WRectF.h>
 #include <Wt/WStackedWidget.h>
@@ -25,9 +27,9 @@
 
 namespace swedish {
 
-class PuzzleUploader::View : public Wt::WContainerWidget {
+class PuzzleUploader::View : public Wt::WDialog {
 public:
-  View(PuzzleUploader *uploader);
+  View(PuzzleUploader *uploader, const Wt::WString &title);
   virtual ~View() override;
 
 protected:
@@ -61,59 +63,115 @@ public:
   virtual ~ConfirmationView() override;
 };
 
-PuzzleUploader::View::View(PuzzleUploader *uploader)
-  : uploader_(uploader)
+PuzzleUploader::View::View(PuzzleUploader *uploader,
+                           const Wt::WString &title)
+  : WDialog(title),
+    uploader_(uploader)
 {
+  setClosable(true);
 }
 
 PuzzleUploader::View::~View()
 { }
 
 PuzzleUploader::UploadView::UploadView(PuzzleUploader *uploader)
-  : View(uploader),
-    fileUpload_(addNew<Wt::WFileUpload>())
-{ }
+  : View(uploader, Wt::utf8("Upload Swedish puzzle"))
+{
+  auto nextBtn = contents()->addNew<Wt::WPushButton>(Wt::utf8("next"));
+  nextBtn->clicked().connect([this]{
+    uploader_->state_ = State::SelectCell;
+    done(Wt::DialogCode::Accepted);
+  });
+}
 
 PuzzleUploader::UploadView::~UploadView()
 { }
 
 PuzzleUploader::SelectCellView::SelectCellView(PuzzleUploader *uploader)
-  : View(uploader)
-{ }
+  : View(uploader, Wt::utf8("Configure puzzle"))
+{
+  resize(Wt::WLength(90, Wt::LengthUnit::ViewportWidth),
+         Wt::WLength(90, Wt::LengthUnit::ViewportHeight));
+  setResizable(true);
+
+  auto nextBtn = contents()->addNew<Wt::WPushButton>(Wt::utf8("next"));
+  nextBtn->clicked().connect([this]{
+    uploader_->state_ = State::Processing;
+    done(Wt::DialogCode::Accepted);
+  });
+}
 
 PuzzleUploader::SelectCellView::~SelectCellView()
 { }
 
 PuzzleUploader::ProcessingView::ProcessingView(PuzzleUploader *uploader)
-  : View(uploader)
-{ }
+  : View(uploader, Wt::utf8("Processing"))
+{
+  auto nextBtn = contents()->addNew<Wt::WPushButton>(Wt::utf8("next"));
+  nextBtn->clicked().connect([this]{
+    uploader_->state_ = State::Confirmation;
+    done(Wt::DialogCode::Accepted);
+  });
+  auto cancelBtn = contents()->addNew<Wt::WPushButton>(Wt::utf8("cancel"));
+  cancelBtn->clicked().connect([this]{
+    done(Wt::DialogCode::Rejected);
+  });
+}
 
 PuzzleUploader::ProcessingView::~ProcessingView()
 { }
 
 PuzzleUploader::ConfirmationView::ConfirmationView(PuzzleUploader *uploader)
-  : View(uploader)
-{ }
+  : View(uploader, Wt::utf8("Confirm"))
+{
+  resize(Wt::WLength(90, Wt::LengthUnit::ViewportWidth),
+         Wt::WLength(90, Wt::LengthUnit::ViewportHeight));
+  setResizable(true);
+
+  auto nextBtn = contents()->addNew<Wt::WPushButton>(Wt::utf8("next"));
+  nextBtn->clicked().connect([this]{
+    uploader_->state_ = State::Done;
+    done(Wt::DialogCode::Accepted);
+  });
+  auto selectCellBtn = contents()->addNew<Wt::WPushButton>(Wt::utf8("go back to select cell"));
+  selectCellBtn->clicked().connect([this]{
+    uploader_->state_ = State::SelectCell;
+    done(Wt::DialogCode::Accepted);
+  });
+}
 
 PuzzleUploader::ConfirmationView::~ConfirmationView()
 { }
 
 PuzzleUploader::PuzzleUploader()
-  : Wt::WCompositeWidget(std::make_unique<Wt::WStackedWidget>())
 {
-  Wt::WAnimation animation(Wt::AnimationEffect::SlideInFromRight,
-                           Wt::TimingFunction::EaseInOut);
-  impl()->setTransitionAnimation(animation, true);
-
-  impl()->addNew<UploadView>(this);
+  createStateView();
 }
 
 PuzzleUploader::~PuzzleUploader()
 { }
 
-Wt::WStackedWidget *PuzzleUploader::impl()
+void PuzzleUploader::createStateView()
 {
-  return static_cast<Wt::WStackedWidget*>(implementation());
+  if (state_ == State::Upload) {
+    view_ = std::make_unique<UploadView>(this);
+  } else if (state_ == State::SelectCell) {
+    view_ = std::make_unique<SelectCellView>(this);
+  } else if (state_ == State::Processing) {
+    view_ = std::make_unique<ProcessingView>(this);
+  } else {
+    assert(state_ == State::Confirmation);
+    view_ = std::make_unique<ConfirmationView>(this);
+  }
+  view_->finished().connect([this](Wt::DialogCode code) {
+    if (code == Wt::DialogCode::Rejected ||
+        state_ == State::Done) {
+      done_.emit();
+    } else {
+      createStateView();
+    }
+  });
+  view_->show();
 }
 
 }
