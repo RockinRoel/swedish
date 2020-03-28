@@ -1,15 +1,18 @@
 #include "SquareFinder.h"
 
+#include <Wt/WApplication.h>
 #include <Wt/WColor.h>
 #include <Wt/WPainter.h>
 #include <Wt/WPointF.h>
 #include <Wt/WRasterImage.h>
 #include <Wt/WRectF.h>
+#include <Wt/WServer.h>
 
 #include <algorithm>
 #include <chrono>
 #include <deque>
 #include <iostream>
+#include <optional>
 
 namespace {
 
@@ -44,15 +47,25 @@ inline double luminance(const unsigned char * const buf,
 
 namespace swedish {
 
-SquareFinder::SquareFinder(const std::string &path,
+SquareFinder::SquareFinder(Puzzle &puzzle,
                            const Rotation rotation,
                            const int x, const int y)
-  : stopFuture_(stopSignal_.get_future())
+  : puzzle_(puzzle),
+    stopFuture_(stopSignal_.get_future()),
+    app_(nullptr),
+    server_(nullptr)
 {
-  thread_ = std::thread([this, path, rotation, x, y]{
+  app_ = Wt::WApplication::instance();
+  server_ = Wt::WServer::instance();
+  thread_ = std::thread([this, rotation, x, y]{
     int w, h;
-    std::vector<unsigned char> buf = extractImageData(path, rotation, w, h);
+    updateStatus(ReadingImage());
+    std::vector<unsigned char> buf = extractImageData(puzzle_.path, rotation, w, h);
+    updateStatus(Processing { 0 });
     determineSquares(buf, w, h, x, y);
+    updateStatus(PopulatingPuzzle());
+    populatePuzzle();
+    updateStatus(Done());
   });
 }
 
@@ -174,6 +187,8 @@ void SquareFinder::determineSquares(const std::vector<unsigned char> &buf,
   queue.push_back({c_x + r_w, c_y, r_area, 0, 1});
   queue.push_back({c_x, c_y + r_h, r_area, 1, 0});
 
+  updateStatus(Processing { static_cast<int>(queue.size()) });
+
   while (!queue.empty()) {
     if (stopRequested())
       return;
@@ -223,10 +238,46 @@ void SquareFinder::determineSquares(const std::vector<unsigned char> &buf,
     queue.push_back({new_c_x + new_r_w, new_c_y, area, row, col + 1});
     queue.push_back({new_c_x, new_c_y + new_r_h, area, row + 1, col});
 
-    std::cout << "QUEUE SIZE: " << queue.size() << '\n' << std::flush;
+    updateStatus(Processing { static_cast<int>(queue.size()) });
+  }
+}
+
+void SquareFinder::populatePuzzle()
+{
+  if (squares_.empty())
+    return;
+
+  int minRow = squares_[0].row;
+  int maxRow = squares_[0].row;
+  int minCol = squares_[0].col;
+  int maxCol = squares_[0].col;
+  for (std::size_t i = 1; i < squares_.size(); ++i) {
+    const Square &square = squares_[i];
+    minRow = std::min(minRow, square.row);
+    maxRow = std::max(maxRow, square.row);
+    minCol = std::min(minCol, square.col);
+    maxCol = std::max(maxCol, square.col);
   }
 
-  // TODO(Roel): signal done!
+  const int rowOffset = -minRow;
+  const int colOffset = -minCol;
+  const int nRows = maxRow - minRow;
+  const int nCols = maxCol - minCol;
+
+  puzzle_.rows_.clear();
+
+  for (int r = 0; r < nRows; ++r) {
+    auto &row = puzzle_.rows_.emplace_back();
+    for (int c = 0; c < nCols; ++c) {
+      row.emplace_back();
+    }
+  }
+
+  for (auto &square : squares_) {
+    Puzzle::Row &row = puzzle_.rows_[static_cast<std::size_t>(square.row + rowOffset)];
+    Cell &cell = row[static_cast<std::size_t>(square.col + colOffset)];
+    cell.square = square.rect;
+  }
 }
 
 std::vector<unsigned char> SquareFinder::extractImageData(const std::string &path,
@@ -265,6 +316,17 @@ std::vector<unsigned char> SquareFinder::extractImageData(const std::string &pat
   rasterImage.getPixels(rgbaPixels.data());
 
   return rgbaPixels;
+}
+
+void SquareFinder::updateStatus(Status status)
+{
+  if (!app_)
+    return;
+
+  server_->post(app_->sessionId(), [this, status]{
+    statusChanged_(status);
+    app_->triggerUpdate();
+  });
 }
 
 }

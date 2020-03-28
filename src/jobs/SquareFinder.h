@@ -3,30 +3,47 @@
 
 #include "../Rotation.h"
 #include "../model/Square.h"
+#include "../model/Puzzle.h"
+
+#include <Wt/WSignal.h>
 
 #include <future>
+#include <memory>
 #include <string>
 #include <thread>
+#include <variant>
 #include <vector>
 
 namespace swedish {
 
 class SquareFinder final {
 public:
-  SquareFinder(const std::string &path,
+  struct ReadingImage {};
+  struct Processing {
+    int queueSize = 0;
+  };
+  struct PopulatingPuzzle {};
+  struct Done {};
+  using Status = std::variant<ReadingImage, Processing, PopulatingPuzzle, Done>;
+
+  SquareFinder(Puzzle &puzzle,
                Rotation rotation,
                int x, int y);
   ~SquareFinder();
 
-  // TODO(Roel): progress updates?
-  //  - reading image
-  //  - queue size
+  Wt::Signal<Status> &statusChanged() { return statusChanged_; }
+
+  const std::vector<Square> &squares() const { return squares_; }
 
 private:
+  Puzzle &puzzle_;
   std::thread thread_;
   std::promise<void> stopSignal_;
   std::future<void> stopFuture_;
   std::vector<Square> squares_;
+  Wt::Signal<Status> statusChanged_;
+  Wt::WApplication *app_;
+  Wt::WServer *server_;
 
   void abort();
   bool stopRequested();
@@ -40,9 +57,11 @@ private:
                         const int h,
                         const int x,
                         const int y);
+  void populatePuzzle();
   static std::vector<unsigned char> extractImageData(const std::string &path,
                                                      Rotation rotation,
                                                      int &w, int &h);
+  void updateStatus(Status status);
 };
 
 }
