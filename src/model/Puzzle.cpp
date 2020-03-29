@@ -71,6 +71,7 @@ Wt::Json::Object Puzzle::encodeJson() const
         json_rect.push_back(static_cast<int>(cell.square.width()));
         json_rect.push_back(static_cast<int>(cell.square.height()));
         json_cell["value"] = Wt::utf8(std::string(charToStr(cell.character_)));
+        json_cell["user"] = cell.user_;
       }
     }
   }
@@ -104,6 +105,8 @@ void Puzzle::decodeJson(const Wt::Json::Object &json)
                                  json_rect[3].toNumber());
         Wt::WString value = json_cell_o.get("value");
         cell.character_ = strToChar(value.toUTF8());
+        long long user = json_cell_o.get("user").orIfNull(-1);
+        cell.user_ = user;
       }
     }
   }
