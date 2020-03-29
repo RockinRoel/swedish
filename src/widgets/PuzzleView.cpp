@@ -7,6 +7,7 @@
 #include <Wt/WBrush.h>
 #include <Wt/WColor.h>
 #include <Wt/WContainerWidget.h>
+#include <Wt/WEnvironment.h>
 #include <Wt/WLength.h>
 #include <Wt/WPaintedWidget.h>
 #include <Wt/WPainter.h>
@@ -244,8 +245,14 @@ PuzzleView::PuzzleView(const Wt::Dbo::ptr<Puzzle> &puzzle,
   paintedWidget_ = bottom->addNew<PuzzlePaintedWidget>(this);
   textLayer_ = bottom->addNew<TextLayer>(this);
 
-  paintedWidget_->resize(puzzle->width, puzzle->height);
-  textLayer_->resize(puzzle->width, puzzle->height);
+  const Wt::WEnvironment &env = app->environment();
+  const int screenHeight = env.screenHeight();
+  if (screenHeight != -1) {
+    zoom_ = (0.7 * screenHeight) / puzzle_->height;
+  }
+
+  paintedWidget_->resize(puzzle->width * zoom_, puzzle->height * zoom_);
+  textLayer_->resize(puzzle->width * zoom_, puzzle->height * zoom_);
 
   auto leftBtnGroup = top->addNew<Wt::WContainerWidget>();
   leftBtnGroup->addStyleClass("btn-group");
