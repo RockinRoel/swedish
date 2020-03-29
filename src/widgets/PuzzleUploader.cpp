@@ -141,6 +141,7 @@ PuzzleUploader::SelectCellView::SelectCellView(PuzzleUploader *uploader)
   setResizable(true);
 
   auto confirmBtn = footer()->addNew<Wt::WPushButton>(Wt::utf8("Confirm"));
+  confirmBtn->addStyleClass("btn-primary");
   confirmBtn->setDisabled(true);
   confirmBtn->clicked().connect([this]{
     uploader_->state_ = State::Processing;
@@ -216,6 +217,7 @@ PuzzleUploader::ConfirmationView::ConfirmationView(PuzzleUploader *uploader)
     done(Wt::DialogCode::Accepted);
   });
   auto confirmBtn = footer()->addNew<Wt::WPushButton>(Wt::utf8("Confirm"));
+  confirmBtn->addStyleClass("btn-primary");
   confirmBtn->clicked().connect([this]{
     uploader_->state_ = State::Done;
     done(Wt::DialogCode::Accepted);
