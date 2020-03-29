@@ -131,7 +131,18 @@ Application::Application(const Wt::WEnvironment &env,
   puzzleContainer_ = rightLayout_->addWidget(std::make_unique<Wt::WContainerWidget>(), 1);
 
   long long puzzleId = -1;
-  {
+  const std::string path = internalPath();
+  if (path.size() > 1 &&
+      path[0] == '/') {
+    std::string::size_type sz = 0;
+    try {
+      puzzleId = std::stoll(path.substr(1), &sz, 10);
+      if (sz + 1 != path.size()) {
+        puzzleId = -1;
+      }
+    } catch (std::invalid_argument &) { }
+  }
+  if (puzzleId == -1) {
     Wt::Dbo::Transaction t(session_);
 
     auto puzzle = session_.find<Puzzle>().orderBy("id desc").limit(1).resultValue();
@@ -306,7 +317,7 @@ void Application::changePuzzle(long long id)
 
   if (!puzzle) {
     if (currentPuzzle_ == -1) {
-      // TODO(Roel): placeholder?
+      setInternalPath("/");
       puzzleEdit_->setText(Wt::WString::Empty);
     } else {
       puzzleEdit_->setText(Wt::utf8("{1}").arg(currentPuzzle_));
@@ -322,6 +333,7 @@ void Application::changePuzzle(long long id)
   puzzleView_ = puzzleContainer_->addNew<PuzzleView>(puzzle, PuzzleViewType::SolvePuzzle);
   puzzleView_->resize(Wt::WLength(100, Wt::LengthUnit::Percentage),
                       Wt::WLength(100, Wt::LengthUnit::Percentage));
+  setInternalPath("/" + std::to_string(currentPuzzle_));
 }
 
 }
