@@ -16,6 +16,8 @@
 
 #include <Wt/Dbo/Dbo.h>
 
+#include <boost/filesystem/path.hpp>
+
 #include <algorithm>
 #include <cmath>
 #include <memory>
@@ -83,7 +85,7 @@ void PuzzleView::PuzzlePaintedWidget::paintEvent(Wt::WPaintDevice *paintDevice)
   Wt::WPainter painter(paintDevice);
 
   const auto & puzzle = puzzleView_->puzzle_;
-  const std::string &path = puzzle->path;
+  std::string path = puzzle->path;
   const Rotation rotation = puzzle->rotation;
   const int w = puzzle->width;
   const int h = puzzle->height;
@@ -103,6 +105,9 @@ void PuzzleView::PuzzlePaintedWidget::paintEvent(Wt::WPaintDevice *paintDevice)
 
   Wt::WApplication *app = Wt::WApplication::instance();
 
+  if (path[0] != '/') {
+    path = "/" + path;
+  }
   Wt::WPainter::Image img(path, app->docRoot() + path);
   painter.drawImage(Wt::WPointF(0.0, 0.0), img);
 }
@@ -138,17 +143,23 @@ void PuzzleView::TextLayer::paintEvent(Wt::WPaintDevice *paintDevice)
       const Wt::WRectF &square = cell.square;
       const double minSize = std::min(square.width(), square.height());
 
-      if (std::make_pair(static_cast<int>(r), static_cast<int>(c)) == puzzleView_->selectedCell_) {
-        Application *app = Application::instance();
-        const auto &users = Application::instance()->users();
-        const long long userId = app->user();
-        const auto it = std::find_if(std::begin(users), std::end(users), [userId](const auto &user) {
-          return user.id == userId;
-        });
-        if (it == std::end(users)) {
-          painter.setPen(Wt::WPen(Wt::StandardColor::Black));
+      if ((puzzleView_->type_ == PuzzleViewType::SolvePuzzle &&
+           std::make_pair(static_cast<int>(r), static_cast<int>(c)) == puzzleView_->selectedCell_) ||
+          puzzleView_->type_ == PuzzleViewType::ViewCells) {
+        if (puzzleView_->type_ == PuzzleViewType::SolvePuzzle) {
+          Application *app = Application::instance();
+          const auto &users = Application::instance()->users();
+          const long long userId = app->user();
+          const auto it = std::find_if(std::begin(users), std::end(users), [userId](const auto &user) {
+            return user.id == userId;
+          });
+          if (it == std::end(users)) {
+            painter.setPen(Wt::WPen(Wt::StandardColor::Black));
+          } else {
+            painter.setPen(Wt::WPen(it->color));
+          }
         } else {
-          painter.setPen(Wt::WPen(it->color));
+          painter.setPen(Wt::WPen(Wt::StandardColor::Red));
         }
         painter.setBrush(Wt::BrushStyle::None);
 
@@ -192,6 +203,22 @@ void PuzzleView::TextLayer::paintEvent(Wt::WPaintDevice *paintDevice)
         }
       }
     }
+  }
+
+  if (puzzleView_->clickPosition_) {
+    Wt::WPointF p = puzzleView_->clickPosition_.value();
+
+    Wt::WPen pen(Wt::StandardColor::Red);
+    pen.setWidth(4.0);
+    painter.setPen(pen);
+
+    Wt::WRectF rect(p.x() * zoom() - 25.0,
+                    p.y() * zoom() - 25.0,
+                    50.0,
+                    50.0);
+
+    painter.drawLine(rect.topLeft(), rect.bottomRight());
+    painter.drawLine(rect.bottomLeft(), rect.topRight());
   }
 }
 
@@ -240,6 +267,34 @@ PuzzleView::PuzzleView(const Wt::Dbo::ptr<Puzzle> &puzzle,
 
       rotateCWBtn->setText(Wt::utf8("<i class=\"fa fa-rotate-right\"></i> Rotate CW"));
       rotateCCWBtn->setText(Wt::utf8("<i class=\"fa fa-rotate-left\"></i> Rotate CCW"));
+
+      rotateCWBtn->clicked().connect([this]{
+        int w = puzzle_->width;
+        int h = puzzle_->height;
+        std::swap(w, h);
+        puzzle_.modify()->width = w;
+        puzzle_.modify()->height = h;
+        puzzle_.modify()->rotation = nextClockwise(puzzle_->rotation);
+
+        paintedWidget_->resize(puzzle_->width * zoom_,
+                               puzzle_->height * zoom_);
+        textLayer_->resize(puzzle_->width * zoom_,
+                           puzzle_->height * zoom_);
+      });
+
+      rotateCCWBtn->clicked().connect([this]{
+        int w = puzzle_->width;
+        int h = puzzle_->height;
+        std::swap(w, h);
+        puzzle_.modify()->width = w;
+        puzzle_.modify()->height = h;
+        puzzle_.modify()->rotation = nextAntiClockwise(puzzle_->rotation);
+
+        paintedWidget_->resize(puzzle_->width * zoom_,
+                               puzzle_->height * zoom_);
+        textLayer_->resize(puzzle_->width * zoom_,
+                           puzzle_->height * zoom_);
+      });
     } else {
       assert(type_ == PuzzleViewType::SolvePuzzle);
       auto horizontalBtn = rightBtnGroup->addNew<Wt::WPushButton>();
@@ -275,7 +330,7 @@ PuzzleView::PuzzleView(const Wt::Dbo::ptr<Puzzle> &puzzle,
       Application::instance()->subscriber()->cellValueChanged().connect(this, &PuzzleView::handleCellValueChanged);
     }
 
-    bottom->clicked().connect(this, &PuzzleView::handleClick);
+    textLayer_->clicked().connect(this, &PuzzleView::handleClick);
   }
 
   zoomInBtn_->setTextFormat(Wt::TextFormat::XHTML);
@@ -296,6 +351,13 @@ PuzzleView::~PuzzleView()
 
 void PuzzleView::update()
 {
+  textLayer_->update();
+}
+
+void PuzzleView::setClickedPoint(const Wt::WPointF &point)
+{
+  clickPosition_ = point;
+
   textLayer_->update();
 }
 
@@ -360,7 +422,12 @@ void PuzzleView::handleClick(const Wt::WMouseEvent &evt)
     textLayer_->update();
   } else {
     assert(type_ == PuzzleViewType::SelectCell);
-    // TODO(Roel): square detection algorithm and stuff
+
+    clickPosition_ = Wt::WPointF(x, y);
+
+    textLayer_->update();
+
+    clickPositionChanged_.emit(clickPosition_.value());
   }
 }
 

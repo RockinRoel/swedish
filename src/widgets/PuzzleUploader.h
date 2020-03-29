@@ -1,12 +1,18 @@
 #ifndef SWEDISH_PUZZLEUPLOADER_H_
 #define SWEDISH_PUZZLEUPLOADER_H_
 
+#include "../model/Puzzle.h"
 #include "../Rotation.h"
 
+#include <Wt/WDialog.h>
 #include <Wt/WObject.h>
+#include <Wt/WPointF.h>
 #include <Wt/WSignal.h>
 
+#include <Wt/Dbo/Dbo.h>
+
 #include <memory>
+#include <optional>
 
 namespace swedish {
 
@@ -15,7 +21,9 @@ public:
   PuzzleUploader();
   virtual ~PuzzleUploader() override;
 
-  Wt::Signal<> &done() { return done_; }
+  Wt::Signal<Wt::DialogCode> &done() { return done_; }
+
+  Wt::Dbo::ptr<Puzzle> & puzzle() { return puzzle_; }
 
 private:
   enum class State {
@@ -33,7 +41,9 @@ private:
   class ConfirmationView;
 
   std::unique_ptr<View> view_;
-  Wt::Signal<> done_;
+  Wt::Dbo::ptr<Puzzle> puzzle_;
+  std::optional<Wt::WPointF> clickedPoint_;
+  Wt::Signal<Wt::DialogCode> done_;
   State state_ = State::Upload;
 
   void createStateView();

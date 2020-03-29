@@ -8,6 +8,8 @@
 #include <Wt/WRectF.h>
 #include <Wt/WServer.h>
 
+#include <boost/filesystem/path.hpp>
+
 #include <algorithm>
 #include <chrono>
 #include <deque>
@@ -27,7 +29,7 @@ inline Wt::WColor bufpix(const unsigned char * const buf,
                     static_cast<int>(*(buf + offset + 2)));
 }
 
-inline double luminance(const unsigned char * const buf,
+inline double lightness(const unsigned char * const buf,
                         const int width,
                         const int x,
                         const int y)
@@ -48,25 +50,17 @@ inline double luminance(const unsigned char * const buf,
 namespace swedish {
 
 SquareFinder::SquareFinder(Puzzle &puzzle,
-                           const Rotation rotation,
-                           const int x, const int y)
+                           const int x,
+                           const int y)
   : puzzle_(puzzle),
+    x_(x),
+    y_(y),
     stopFuture_(stopSignal_.get_future()),
     app_(nullptr),
     server_(nullptr)
 {
   app_ = Wt::WApplication::instance();
   server_ = Wt::WServer::instance();
-  thread_ = std::thread([this, rotation, x, y]{
-    int w, h;
-    updateStatus(ReadingImage());
-    std::vector<unsigned char> buf = extractImageData(puzzle_.path, rotation, w, h);
-    updateStatus(Processing { 0 });
-    determineSquares(buf, w, h, x, y);
-    updateStatus(PopulatingPuzzle());
-    populatePuzzle();
-    updateStatus(Done());
-  });
 }
 
 SquareFinder::~SquareFinder()
@@ -76,6 +70,26 @@ SquareFinder::~SquareFinder()
   if (thread_.joinable()) {
     thread_.join();
   }
+}
+
+void SquareFinder::start()
+{
+  Wt::WApplication *app = Wt::WApplication::instance();
+  boost::filesystem::path docRoot = app->docRoot();
+  std::string path = (docRoot / puzzle_.path).string();
+  thread_ = std::thread([this, path]{
+    int w, h;
+    updateStatus(ReadingImage());
+    std::vector<unsigned char> buf = extractImageData(path, puzzle_.rotation, w, h);
+    updateStatus(Processing { 0 });
+    determineSquares(buf, w, h, x_, y_);
+    updateStatus(PopulatingPuzzle());
+    if (stopRequested()) {
+      return;
+    }
+    populatePuzzle();
+    updateStatus(Done());
+  });
 }
 
 void SquareFinder::abort()
@@ -97,11 +111,11 @@ Wt::WRectF SquareFinder::determineSquare(const std::vector<unsigned char> &buf,
                                          const int y)
 {
   std::vector<bool> visited(buf.size(), false);
-  const double px_l = luminance(buf.data(), w, x, y);
+  const double px_l = lightness(buf.data(), w, x, y);
 
   struct QueueEl {
     int x, y; // x, y position
-    double l; // luminance
+    double l; // lightness
   };
 
   std::deque<QueueEl> queue;
@@ -117,9 +131,6 @@ Wt::WRectF SquareFinder::determineSquare(const std::vector<unsigned char> &buf,
   int min_y = y;
   int max_y = y;
   while (!queue.empty()) {
-    if (stopRequested())
-      return Wt::WRectF();
-
     auto p = queue.front();
     queue.pop_front();
 
@@ -138,7 +149,7 @@ Wt::WRectF SquareFinder::determineSquare(const std::vector<unsigned char> &buf,
 
     visited[static_cast<std::size_t>(cur_y * w + cur_x)] = true;
 
-    const double l = luminance(buf.data(), w, cur_x, cur_y);
+    const double l = lightness(buf.data(), w, cur_x, cur_y);
     if (std::abs(l - prev_l) < 0.01) {
       queue.push_back({cur_x - 1, cur_y, l});
       queue.push_back({cur_x, cur_y - 1, l});
@@ -261,8 +272,8 @@ void SquareFinder::populatePuzzle()
 
   const int rowOffset = -minRow;
   const int colOffset = -minCol;
-  const int nRows = maxRow - minRow;
-  const int nCols = maxCol - minCol;
+  const int nRows = maxRow - minRow + 1;
+  const int nCols = maxCol - minCol + 1;
 
   puzzle_.rows_.clear();
 

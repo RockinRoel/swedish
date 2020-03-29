@@ -14,6 +14,7 @@
 
 namespace swedish {
 
+class PuzzleUploader;
 class PuzzleView;
 
 class Application final : public Wt::WApplication {
@@ -48,6 +49,7 @@ private:
   long long user_;
   std::vector<UserCopy> users_;
   PuzzleView *puzzleView_;
+  PuzzleUploader *puzzleUploader_;
 
   std::unique_ptr<Wt::WPanel> createChangeColorPanel(const Wt::WColor &color);
 

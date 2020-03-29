@@ -7,8 +7,10 @@
 #include "../model/Puzzle.h"
 
 #include <Wt/WCompositeWidget.h>
+#include <Wt/WPointF.h>
+#include <Wt/WSignal.h>
 
-#include <array>
+#include <optional>
 
 namespace swedish {
 
@@ -26,6 +28,10 @@ public:
 
   void update();
 
+  void setClickedPoint(const Wt::WPointF &point);
+
+  Wt::Signal<Wt::WPointF> &clickPositionChanged() { return clickPositionChanged_; }
+
 private:
   class Layer;
   class PuzzlePaintedWidget;
@@ -35,6 +41,8 @@ private:
   PuzzlePaintedWidget *paintedWidget_ = nullptr;
   TextLayer *textLayer_ = nullptr;
   std::pair<int, int> selectedCell_ = { -1, -1 };
+  Wt::Signal<Wt::WPointF> clickPositionChanged_;
+  std::optional<Wt::WPointF> clickPosition_;
 
   Wt::WPushButton *zoomInBtn_ = nullptr, *zoomOutBtn_ = nullptr;
   double zoom_ = 1.0;

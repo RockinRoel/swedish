@@ -43,7 +43,8 @@ Application::Application(const Wt::WEnvironment &env,
     left_(nullptr),
     userList_(nullptr),
     user_(-1),
-    puzzleView_(nullptr)
+    puzzleView_(nullptr),
+    puzzleUploader_(nullptr)
 {
   enableUpdates();
 
@@ -83,7 +84,7 @@ Application::Application(const Wt::WEnvironment &env,
       }
     }
 
-    puzzle = session_.load<Puzzle>(1);
+    puzzle = session_.load<Puzzle>(2);
   }
 
   Wt::WFont font;
@@ -163,15 +164,27 @@ Application::Application(const Wt::WEnvironment &env,
   chooseUserDialog->show();
 
   puzzleUploadBtn->clicked().connect([this]{
-    auto puzzleUploader = addChild(std::make_unique<PuzzleUploader>());
-    puzzleUploader->done().connect([this, puzzleUploader]{
-      removeChild(puzzleUploader);
+    puzzleUploader_ = addChild(std::make_unique<PuzzleUploader>());
+    puzzleUploader_->done().connect([this](Wt::DialogCode code){
+      if (code == Wt::DialogCode::Accepted) {
+        {
+          Wt::Dbo::Transaction t(session_);
+
+          session_.add(puzzleUploader_->puzzle());
+        }
+      }
+      removeChild(puzzleUploader_);
+      puzzleUploader_ = nullptr;
     });
   });
 }
 
 Application::~Application()
-{ }
+{
+  if (puzzleUploader_) {
+    removeChild(puzzleUploader_);
+  }
+}
 
 void Application::initialize()
 {

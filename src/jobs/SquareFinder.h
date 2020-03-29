@@ -27,9 +27,10 @@ public:
   using Status = std::variant<ReadingImage, Processing, PopulatingPuzzle, Done>;
 
   SquareFinder(Puzzle &puzzle,
-               Rotation rotation,
                int x, int y);
   ~SquareFinder();
+
+  void start();
 
   Wt::Signal<Status> &statusChanged() { return statusChanged_; }
 
@@ -40,6 +41,7 @@ private:
   };
 
   Puzzle &puzzle_;
+  int x_, y_;
   std::thread thread_;
   std::promise<void> stopSignal_;
   std::future<void> stopFuture_;

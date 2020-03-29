@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
 
   Wt::Dbo::logToWt();
 
-  Wt::WServer server(argv[0]);
+  Wt::WServer server(argc, argv);
 
   auto conn = std::make_unique<Wt::Dbo::backend::Postgres>(
         "user=swedish password=hypersecure port=5432 dbname=swedish host=127.0.0.1");
@@ -38,29 +38,6 @@ int main(int argc, char *argv[]) {
   conn->setProperty("show-queries", "true");
 
   Wt::Dbo::FixedSqlConnectionPool pool(std::move(conn), 10);
-
-  server.setServerConfiguration(argc, argv);
-
-  /*
-  server.addEntryPoint(Wt::EntryPointType::Application,
-                       [](const Wt::WEnvironment &env) {
-          auto app = std::make_unique<Wt::WApplication>(env);
-          auto theme = std::make_shared<Wt::WBootstrapTheme>();
-          theme->setVersion(Wt::BootstrapVersion::v3);
-          app->setTheme(theme);
-
-          app->messageResourceBundle().use(app->appRoot() + "template");
-          Wt::Dbo::ptr<Puzzle> puzzle = Wt::Dbo::make_ptr<Puzzle>();
-          puzzle.modify()->path = "/puzzle.jpg";
-          puzzle.modify()->rotation = Rotation::Clockwise90;
-          puzzle.modify()->width = 3000;
-          puzzle.modify()->height = 4000;
-          auto puzzleView = app->root()->addNew<swedish::PuzzleView>(puzzle);
-          puzzleView->resize(500, 500);
-
-          return app;
-  });
-  */
 
   server.addEntryPoint(Wt::EntryPointType::Application,
                        [&pool,&globalSession,&dispatcher](const Wt::WEnvironment &env) {
