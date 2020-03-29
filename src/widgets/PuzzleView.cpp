@@ -355,19 +355,17 @@ Wt::WContainerWidget *PuzzleView::impl()
 
 void PuzzleView::zoomIn()
 {
-  zoom_ = std::min(zoom_ + 0.1, max_zoom);
-
-  paintedWidget_->resize(puzzle_->width * zoom_,
-                         puzzle_->height * zoom_);
-  textLayer_->resize(puzzle_->width * zoom_,
-                     puzzle_->height * zoom_);
-
-  paintedWidget_->update();
+  setZoom(zoom_ + 0.1);
 }
 
 void PuzzleView::zoomOut()
 {
-  zoom_ = std::max(zoom_ - 0.1, min_zoom);
+  setZoom(zoom_ - 0.1);
+}
+
+void PuzzleView::setZoom(double zoom)
+{
+  zoom_ = std::max(min_zoom, std::min(max_zoom, zoom));
 
   paintedWidget_->resize(puzzle_->width * zoom_,
                          puzzle_->height * zoom_);
@@ -550,6 +548,19 @@ void PuzzleView::handleKeyPressed(const Wt::WKeyEvent &evt)
   if (charCode == static_cast<int>('\\') ||
       charCode == static_cast<int>('`')) {
     changeDirection(direction_ == Wt::Orientation::Horizontal ? Wt::Orientation::Vertical : Wt::Orientation::Horizontal);
+    return;
+  }
+  if (charCode == static_cast<int>('-')) {
+    zoomOut();
+    return;
+  }
+  if (charCode == static_cast<int>('=')) {
+    setZoom(1.0);
+    return;
+  }
+  if (charCode == static_cast<int>('+')) {
+    zoomIn();
+    return;
   }
 }
 

@@ -53,6 +53,7 @@ private:
   Wt::WContainerWidget *impl();
   void zoomIn();
   void zoomOut();
+  void setZoom(double zoom);
   void handleClick(const Wt::WMouseEvent &evt);
   void handleKeyWentDown(const Wt::WKeyEvent &evt);
   void handleKeyPressed(const Wt::WKeyEvent &evt);
