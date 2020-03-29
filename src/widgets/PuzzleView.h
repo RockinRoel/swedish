@@ -45,6 +45,7 @@ private:
   std::optional<Wt::WPointF> clickPosition_;
 
   Wt::WPushButton *zoomInBtn_ = nullptr, *zoomOutBtn_ = nullptr;
+  Wt::WPushButton *horizontalBtn_ = nullptr, *verticalBtn_ = nullptr;
   double zoom_ = 1.0;
   PuzzleViewType type_;
   Wt::Orientation direction_ = Wt::Orientation::Horizontal;
@@ -54,6 +55,8 @@ private:
   void zoomOut();
   void handleClick(const Wt::WMouseEvent &evt);
   void handleKeyWentDown(const Wt::WKeyEvent &evt);
+  void handleKeyPressed(const Wt::WKeyEvent &evt);
+  void changeDirection(Wt::Orientation direction);
   void handleCellValueChanged(long long puzzleId, std::pair<int, int> cellRef);
   std::pair<int, int> nextCell(std::pair<int, int> cellRef,
                                Direction direction) const;

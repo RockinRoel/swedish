@@ -46,10 +46,13 @@ private:
   Wt::WVBoxLayout *rightLayout_;
   Wt::WContainerWidget *left_;
   Wt::WContainerWidget *userList_;
-  long long user_;
+  long long user_ = -1;
   std::vector<UserCopy> users_;
-  PuzzleView *puzzleView_;
-  PuzzleUploader *puzzleUploader_;
+  long long currentPuzzle_ = -1;
+  Wt::WContainerWidget *puzzleContainer_ = nullptr;
+  PuzzleView *puzzleView_  = nullptr;
+  PuzzleUploader *puzzleUploader_ = nullptr;
+  Wt::WLineEdit *puzzleEdit_ = nullptr;
 
   std::unique_ptr<Wt::WPanel> createChangeColorPanel(const Wt::WColor &color);
 
@@ -60,8 +63,7 @@ private:
   void handleUserChangedColor(long long id,
                               const Wt::WColor &color);
 
-  void handleCellValueChanged(long long puzzleId,
-                              std::pair<int, int> cellRef);
+  void changePuzzle(long long id);
 };
 
 }

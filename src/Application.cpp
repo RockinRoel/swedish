@@ -26,6 +26,7 @@
 #include "widgets/PuzzleUploader.h"
 
 #include <memory>
+#include <string>
 
 namespace swedish {
 
@@ -42,7 +43,6 @@ Application::Application(const Wt::WEnvironment &env,
     rightLayout_(nullptr),
     left_(nullptr),
     userList_(nullptr),
-    user_(-1),
     puzzleView_(nullptr),
     puzzleUploader_(nullptr)
 {
@@ -71,8 +71,6 @@ Application::Application(const Wt::WEnvironment &env,
   userList_ = usersPanel->setCentralWidget(std::make_unique<Wt::WContainerWidget>());
   userList_->setList(true);
 
-  Wt::Dbo::ptr<Puzzle> puzzle;
-
   {
     Wt::Dbo::Transaction t(session_);
 
@@ -83,8 +81,6 @@ Application::Application(const Wt::WEnvironment &env,
         users_.push_back({user.id(), user->name, user->color});
       }
     }
-
-    puzzle = session_.load<Puzzle>(2);
   }
 
   Wt::WFont font;
@@ -104,16 +100,47 @@ Application::Application(const Wt::WEnvironment &env,
 
   auto topbar = rightLayout_->addWidget(std::make_unique<Wt::WTemplate>(Wt::WString::tr("tpl.swedish.topbar")));
 
-  topbar->bindNew<Wt::WPushButton>("prev-btn", Wt::utf8("Previous"));
+  auto prevBtn = topbar->bindNew<Wt::WPushButton>("prev-btn", Wt::utf8("Previous"));
   auto puzzleUploadBtn = topbar->bindNew<Wt::WPushButton>("upload-btn", Wt::utf8("Upload new puzzle"));
-  topbar->bindNew<Wt::WLineEdit>("current-puzzle-edit");
-  topbar->bindNew<Wt::WPushButton>("go-btn", Wt::utf8("Go"));
-  topbar->bindNew<Wt::WPushButton>("next-btn", Wt::utf8("Next"));
+  puzzleEdit_ = topbar->bindNew<Wt::WLineEdit>("current-puzzle-edit");
+  auto goBtn = topbar->bindNew<Wt::WPushButton>("go-btn", Wt::utf8("Go"));
+  auto nextBtn = topbar->bindNew<Wt::WPushButton>("next-btn", Wt::utf8("Next"));
 
-  auto puzzleContainer = rightLayout_->addWidget(std::make_unique<Wt::WContainerWidget>(), 1);
-  puzzleView_ = puzzleContainer->addNew<PuzzleView>(puzzle, PuzzleViewType::SolvePuzzle);
-  puzzleView_->resize(Wt::WLength(100, Wt::LengthUnit::Percentage),
-                      Wt::WLength(100, Wt::LengthUnit::Percentage));
+  prevBtn->clicked().connect([this]{
+    const long long newPuzzle = currentPuzzle_ - 1;
+    changePuzzle(newPuzzle);
+  });
+  nextBtn->clicked().connect([this]{
+    const long long newPuzzle = currentPuzzle_ + 1;
+    changePuzzle(newPuzzle);
+  });
+  auto puzzleEditReturnOrGoClick = [this]{
+    const std::string s = puzzleEdit_->valueText().toUTF8();
+
+    std::string::size_type sz = 0;
+    try {
+      const long long newPuzzle = std::stoll(s, &sz, 10);
+      if (sz == s.size()) {
+        changePuzzle(newPuzzle);
+      }
+    } catch (std::invalid_argument&) { }
+  };
+  puzzleEdit_->enterPressed().connect(puzzleEditReturnOrGoClick);
+  goBtn->clicked().connect(puzzleEditReturnOrGoClick);
+
+  puzzleContainer_ = rightLayout_->addWidget(std::make_unique<Wt::WContainerWidget>(), 1);
+
+  long long puzzleId = -1;
+  {
+    Wt::Dbo::Transaction t(session_);
+
+    auto puzzle = session_.find<Puzzle>().orderBy("id desc").limit(1).resultValue();
+    if (puzzle) {
+      puzzleId = puzzle.id();
+    }
+  }
+
+  changePuzzle(puzzleId);
 
   auto chooseUserDialog = addChild(std::make_unique<Wt::WDialog>(Wt::utf8("Choose user")));
 
@@ -170,7 +197,12 @@ Application::Application(const Wt::WEnvironment &env,
         {
           Wt::Dbo::Transaction t(session_);
 
-          session_.add(puzzleUploader_->puzzle());
+          Wt::Dbo::ptr<Puzzle> puzzle = puzzleUploader_->puzzle();
+          session_.add(puzzle);
+
+          session_.flush();
+
+          changePuzzle(puzzle.id());
         }
       }
       removeChild(puzzleUploader_);
@@ -261,6 +293,35 @@ void Application::handleUserChangedColor(long long id,
   }
 
   triggerUpdate();
+}
+
+void Application::changePuzzle(long long id)
+{
+  Wt::Dbo::Transaction t(session_);
+
+  Wt::Dbo::ptr<Puzzle> puzzle;
+  try {
+    puzzle = session_.load<Puzzle>(id);
+  } catch (Wt::Dbo::Exception &) { }
+
+  if (!puzzle) {
+    if (currentPuzzle_ == -1) {
+      // TODO(Roel): placeholder?
+      puzzleEdit_->setText(Wt::WString::Empty);
+    } else {
+      puzzleEdit_->setText(Wt::utf8("{1}").arg(currentPuzzle_));
+    }
+    return;
+  } else {
+    puzzleEdit_->setText(Wt::utf8("{1}").arg(puzzle.id()));
+  }
+
+  currentPuzzle_ = id;
+  puzzleContainer_->clear();
+  puzzleView_ = nullptr;
+  puzzleView_ = puzzleContainer_->addNew<PuzzleView>(puzzle, PuzzleViewType::SolvePuzzle);
+  puzzleView_->resize(Wt::WLength(100, Wt::LengthUnit::Percentage),
+                      Wt::WLength(100, Wt::LengthUnit::Percentage));
 }
 
 }

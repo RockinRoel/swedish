@@ -210,14 +210,14 @@ PuzzleUploader::ConfirmationView::ConfirmationView(PuzzleUploader *uploader)
 
   contents()->addNew<PuzzleView>(uploader_->puzzle_, PuzzleViewType::ViewCells);
 
-  auto confirmBtn = footer()->addNew<Wt::WPushButton>(Wt::utf8("Confirm"));
-  confirmBtn->clicked().connect([this]{
-    uploader_->state_ = State::Done;
-    done(Wt::DialogCode::Accepted);
-  });
   auto selectCellBtn = footer()->addNew<Wt::WPushButton>(Wt::utf8("Go back to select cell"));
   selectCellBtn->clicked().connect([this]{
     uploader_->state_ = State::SelectCell;
+    done(Wt::DialogCode::Accepted);
+  });
+  auto confirmBtn = footer()->addNew<Wt::WPushButton>(Wt::utf8("Confirm"));
+  confirmBtn->clicked().connect([this]{
+    uploader_->state_ = State::Done;
     done(Wt::DialogCode::Accepted);
   });
 }

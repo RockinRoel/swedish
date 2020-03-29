@@ -297,35 +297,22 @@ PuzzleView::PuzzleView(const Wt::Dbo::ptr<Puzzle> &puzzle,
       });
     } else {
       assert(type_ == PuzzleViewType::SolvePuzzle);
-      auto horizontalBtn = rightBtnGroup->addNew<Wt::WPushButton>();
-      auto verticalBtn = rightBtnGroup->addNew<Wt::WPushButton>();
+      horizontalBtn_ = rightBtnGroup->addNew<Wt::WPushButton>();
+      verticalBtn_ = rightBtnGroup->addNew<Wt::WPushButton>();
 
-      horizontalBtn->setTextFormat(Wt::TextFormat::XHTML);
-      verticalBtn->setTextFormat(Wt::TextFormat::XHTML);
+      horizontalBtn_->setTextFormat(Wt::TextFormat::XHTML);
+      verticalBtn_->setTextFormat(Wt::TextFormat::XHTML);
 
-      horizontalBtn->addStyleClass("active");
+      horizontalBtn_->addStyleClass("active");
 
-      horizontalBtn->setText(Wt::utf8("<i class=\"fa fa-caret-right\"></i> Horizontal"));
-      verticalBtn->setText(Wt::utf8("<i class=\"fa fa-caret-down\"></i> Vertical"));
+      horizontalBtn_->setText(Wt::utf8("<i class=\"fa fa-caret-right\"></i> Horizontal"));
+      verticalBtn_->setText(Wt::utf8("<i class=\"fa fa-caret-down\"></i> Vertical"));
 
-      horizontalBtn->clicked().connect([this, horizontalBtn, verticalBtn]{
-        if (direction_ == Wt::Orientation::Horizontal) {
-          return;
-        }
-        direction_ = Wt::Orientation::Horizontal;
-        horizontalBtn->addStyleClass("active");
-        verticalBtn->removeStyleClass("active");
-      });
-      verticalBtn->clicked().connect([this, horizontalBtn, verticalBtn]{
-        if (direction_ == Wt::Orientation::Vertical) {
-          return;
-        }
-        direction_ = Wt::Orientation::Vertical;
-        horizontalBtn->removeStyleClass("active");
-        verticalBtn->addStyleClass("active");
-      });
+      horizontalBtn_->clicked().connect(std::bind(&PuzzleView::changeDirection, this, Wt::Orientation::Horizontal));
+      verticalBtn_->clicked().connect(std::bind(&PuzzleView::changeDirection, this, Wt::Orientation::Vertical));
 
       app->globalKeyWentDown().connect(this, &PuzzleView::handleKeyWentDown);
+      app->globalKeyPressed().connect(this, &PuzzleView::handleKeyPressed);
 
       Application::instance()->subscriber()->cellValueChanged().connect(this, &PuzzleView::handleCellValueChanged);
     }
@@ -455,20 +442,21 @@ void PuzzleView::handleKeyWentDown(const Wt::WKeyEvent &evt)
   }
 
   if (evt.key() == Wt::Key::Backspace) {
-    Character currentChar = app->globalSession()->charAt(puzzle_.id(), selectedCell_).first;
+    const std::pair<int, int> previous = nextCell(selectedCell_, direction_ == Wt::Orientation::Horizontal ? Direction::Left : Direction::Up);
+    if (previous == std::make_pair(-1, -1)) {
+      return;
+    }
 
     app->globalSession()->updateChar(puzzle_.id(),
-                                     selectedCell_,
-                                     currentChar == Character::IJ ? Character::I : Character::None,
+                                     previous,
+                                     Character::None,
                                      app->user());
 
     app->dispatcher()->notifyCellValueChanged(app->subscriber(),
                                               puzzle_.id(),
-                                              selectedCell_);
+                                              previous);
 
-    if (currentChar != Character::IJ) {
-      selectedCell_ = nextCell(selectedCell_, direction_ == Wt::Orientation::Horizontal ? Direction::Left : Direction::Up);
-    }
+    selectedCell_ = previous;
 
     textLayer_->update();
 
@@ -554,6 +542,25 @@ void PuzzleView::handleKeyWentDown(const Wt::WKeyEvent &evt)
 
     textLayer_->update();
   }
+}
+
+void PuzzleView::handleKeyPressed(const Wt::WKeyEvent &evt)
+{
+  int charCode = evt.charCode();
+  if (charCode == static_cast<int>('\\') ||
+      charCode == static_cast<int>('`')) {
+    changeDirection(direction_ == Wt::Orientation::Horizontal ? Wt::Orientation::Vertical : Wt::Orientation::Horizontal);
+  }
+}
+
+void PuzzleView::changeDirection(Wt::Orientation direction)
+{
+  if (direction == direction_) {
+    return;
+  }
+  direction_ = direction;
+  horizontalBtn_->toggleStyleClass("active", direction_ == Wt::Orientation::Horizontal);
+  verticalBtn_->toggleStyleClass("active", direction_ == Wt::Orientation::Vertical);
 }
 
 void PuzzleView::handleCellValueChanged(long long puzzleId,
