@@ -56,8 +56,8 @@ GlobalSession::~GlobalSession()
   try {
     Wt::log("info") << "GlobalSession" << ": last sync";
     sync(true);
-  } catch (...) {
-    // TODO(Roel): error!
+  } catch (const Wt::Dbo::Exception &e) {
+    Wt::log("error") << "GlobalSession" << ": an error occurred when syncing: " << e.what();
   }
 }
 
@@ -115,6 +115,10 @@ Wt::Dbo::ptr<Puzzle> GlobalSession::getPuzzle(long long puzzle)
 
     Wt::Dbo::ptr<Puzzle> puzzlePtr = session_.load<Puzzle>(puzzle);
 
+    if (puzzlePtr) {
+      puzzles_.push_back(puzzlePtr);
+    }
+
     return puzzlePtr;
   } else {
     return *it;
@@ -147,9 +151,7 @@ void GlobalSession::sync(bool last)
 
   Wt::Dbo::Transaction t(session_);
 
-  for (auto &puzzle : puzzles_) {
-    puzzle.flush();
-  }
+  session_.flush();
 }
 
 }
