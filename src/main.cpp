@@ -28,8 +28,12 @@ int main(int argc, char *argv[]) {
 
   Wt::WServer server(argc, argv);
 
-  auto conn = std::make_unique<Wt::Dbo::backend::Postgres>(
-        "user=swedish password=hypersecure port=5432 dbname=swedish host=127.0.0.1");
+  std::string connStr;
+  if (!server.readConfigurationProperty("connection_string", connStr)) {
+    Wt::log("error") << "Swedish" << ": Missing 'connection_string' in configuration properties";
+    return -1;
+  }
+  auto conn = std::make_unique<Wt::Dbo::backend::Postgres>(connStr);
 
   auto sharedSession = std::make_shared<SharedSession>(&server.ioService(), conn->clone());
   Dispatcher dispatcher(&server);
