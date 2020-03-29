@@ -312,13 +312,14 @@ PuzzleView::PuzzleView(const Wt::Dbo::ptr<Puzzle> &puzzle,
       verticalBtn_->clicked().connect(std::bind(&PuzzleView::changeDirection, this, Wt::Orientation::Vertical));
 
       app->globalKeyWentDown().connect(this, &PuzzleView::handleKeyWentDown);
-      app->globalKeyPressed().connect(this, &PuzzleView::handleKeyPressed);
 
       Application::instance()->subscriber()->cellValueChanged().connect(this, &PuzzleView::handleCellValueChanged);
     }
 
     textLayer_->clicked().connect(this, &PuzzleView::handleClick);
   }
+
+  app->globalKeyPressed().connect(this, &PuzzleView::handleKeyPressed);
 
   zoomInBtn_->setTextFormat(Wt::TextFormat::XHTML);
   zoomOutBtn_->setTextFormat(Wt::TextFormat::XHTML);
@@ -328,9 +329,6 @@ PuzzleView::PuzzleView(const Wt::Dbo::ptr<Puzzle> &puzzle,
 
   zoomInBtn_->clicked().connect(this, &PuzzleView::zoomIn);
   zoomOutBtn_->clicked().connect(this, &PuzzleView::zoomOut);
-
-  // TODO(Roel): other controls
-  // TODO(Roel): clicked
 }
 
 PuzzleView::~PuzzleView()
@@ -545,10 +543,12 @@ void PuzzleView::handleKeyWentDown(const Wt::WKeyEvent &evt)
 void PuzzleView::handleKeyPressed(const Wt::WKeyEvent &evt)
 {
   int charCode = evt.charCode();
-  if (charCode == static_cast<int>('\\') ||
-      charCode == static_cast<int>('`')) {
-    changeDirection(direction_ == Wt::Orientation::Horizontal ? Wt::Orientation::Vertical : Wt::Orientation::Horizontal);
-    return;
+  if (type_ == PuzzleViewType::SolvePuzzle) {
+    if (charCode == static_cast<int>('\\') ||
+        charCode == static_cast<int>('`')) {
+      changeDirection(direction_ == Wt::Orientation::Horizontal ? Wt::Orientation::Vertical : Wt::Orientation::Horizontal);
+      return;
+    }
   }
   if (charCode == static_cast<int>('-')) {
     zoomOut();
