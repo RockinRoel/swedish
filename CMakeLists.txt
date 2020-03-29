@@ -46,6 +46,12 @@ endif()
 target_link_libraries(swedish.wt PRIVATE ${BOOST_FILESYSTEM_LIBRARY})
 
 install(TARGETS swedish.wt DESTINATION bin)
+install(
+  FILES scripts/run.sh
+  DESTINATION bin
+  PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
+              GROUP_READ GROUP_EXECUTE
+              WORLD_READ WORLD_EXECUTE)
 install(DIRECTORY docroot/js DESTINATION docroot)
 install(DIRECTORY docroot/css DESTINATION docroot)
 install(DIRECTORY approot DESTINATION .)
