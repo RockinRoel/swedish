@@ -10,20 +10,22 @@
 #include <boost/system/error_code.hpp>
 
 #include <atomic>
+#include <memory>
 #include <mutex>
 #include <utility>
 #include <vector>
 
 namespace swedish {
 
-class GlobalSession final {
+class GlobalSession final : public std::enable_shared_from_this<GlobalSession> {
 public:
   GlobalSession(Wt::WIOService *ioService,
                 std::unique_ptr<Wt::Dbo::SqlConnection> conn);
 
   ~GlobalSession();
 
-  void terminate();
+  void startTimer();
+  void stopTimer();
 
   std::pair<Character, long long> charAt(long long puzzle,
                                          std::pair<int, int> cellRef);
@@ -35,7 +37,7 @@ public:
 
 private:
   Wt::WIOService *ioService_;
-  boost::asio::steady_timer timer_;
+  std::unique_ptr<boost::asio::steady_timer> timer_;
   Session session_;
   std::mutex mutex_;
   std::vector<Wt::Dbo::ptr<Puzzle>> puzzles_;

@@ -10,8 +10,6 @@
 
 using namespace std::chrono_literals;
 
-#define TIMER 0
-
 namespace {
 
 constexpr const std::chrono::seconds interval = 3s;
@@ -20,12 +18,9 @@ constexpr const std::chrono::seconds interval = 3s;
 
 namespace swedish {
 
-// TODO(Roel): cleanly terminate global sync???
-
 GlobalSession::GlobalSession(Wt::WIOService *ioService,
                              std::unique_ptr<Wt::Dbo::SqlConnection> conn)
   : ioService_(ioService),
-    timer_(*ioService_),
     session_(std::move(conn)),
     terminated_(false)
 {
@@ -37,11 +32,6 @@ GlobalSession::GlobalSession(Wt::WIOService *ioService,
   }
 
   session_.setFlushMode(Wt::Dbo::FlushMode::Manual);
-
-#if TIMER
-  timer_.expires_after(interval);
-  timer_.async_wait(std::bind(&GlobalSession::timeout, this, std::placeholders::_1));
-#endif
 }
 
 GlobalSession::~GlobalSession()
@@ -51,14 +41,25 @@ GlobalSession::~GlobalSession()
     terminated_ = true;
   }
 
-  Wt::log("info") << "GlobalSession" << ": in dtor, canceling timer";
-
   try {
     Wt::log("info") << "GlobalSession" << ": last sync";
     sync(true);
   } catch (const Wt::Dbo::Exception &e) {
     Wt::log("error") << "GlobalSession" << ": an error occurred when syncing: " << e.what();
   }
+}
+
+void GlobalSession::startTimer()
+{
+  timer_ = std::make_unique<boost::asio::steady_timer>(*ioService_);
+  timer_->expires_after(interval);
+  timer_->async_wait(std::bind(&GlobalSession::timeout, shared_from_this(), std::placeholders::_1));
+}
+
+void GlobalSession::stopTimer()
+{
+  timer_->cancel();
+  timer_ = nullptr;
 }
 
 std::pair<Character, long long> GlobalSession::charAt(long long puzzle,
@@ -127,16 +128,14 @@ Wt::Dbo::ptr<Puzzle> GlobalSession::getPuzzle(long long puzzle)
 
 void GlobalSession::timeout(boost::system::error_code errc)
 {
-  if (terminated_ || errc)
+  if (errc || terminated_)
     return;
 
   sync(false);
 
   if (!terminated_) {
-#if TIMER
-    timer_.expires_after(interval);
-    timer_.async_wait(std::bind(&GlobalSession::timeout, this, std::placeholders::_1));
-#endif
+    timer_->expires_after(interval);
+    timer_->async_wait(std::bind(&GlobalSession::timeout, shared_from_this(), std::placeholders::_1));
   }
 }
 

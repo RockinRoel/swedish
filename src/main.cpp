@@ -31,8 +31,7 @@ int main(int argc, char *argv[]) {
   auto conn = std::make_unique<Wt::Dbo::backend::Postgres>(
         "user=swedish password=hypersecure port=5432 dbname=swedish host=127.0.0.1");
 
-  GlobalSession globalSession(&server.ioService(),
-                              conn->clone());
+  auto globalSession = std::make_shared<GlobalSession>(&server.ioService(), conn->clone());
   Dispatcher dispatcher(&server);
 
   conn->setProperty("show-queries", "true");
@@ -40,9 +39,16 @@ int main(int argc, char *argv[]) {
   Wt::Dbo::FixedSqlConnectionPool pool(std::move(conn), 10);
 
   server.addEntryPoint(Wt::EntryPointType::Application,
-                       [&pool,&globalSession,&dispatcher](const Wt::WEnvironment &env) {
-    return std::make_unique<Application>(env, pool, &globalSession, &dispatcher);
+                       [&pool,globalSession=globalSession.get(),&dispatcher](const Wt::WEnvironment &env) {
+    return std::make_unique<Application>(env, pool, globalSession, &dispatcher);
   });
 
-  server.run();
+  if (server.start()) {
+    globalSession->startTimer();
+    int sig = Wt::WServer::waitForShutdown();
+    Wt::log("info") << "Swedish" << ": Shutdown received, sig = " << sig;
+    globalSession->stopTimer();
+    server.stop();
+    globalSession.reset();
+  }
 }
