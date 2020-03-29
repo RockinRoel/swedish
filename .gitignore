@@ -2,3 +2,4 @@ CMakeLists.txt.user
 /build
 *.autosave
 /docroot/puzzles/*.jpg
+/install-dir

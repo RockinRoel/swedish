@@ -109,6 +109,7 @@ PuzzleUploader::UploadView::UploadView(PuzzleUploader *uploader)
     boost::filesystem::path path = fileName;
     path.replace_extension(".jpg");
     boost::filesystem::path docRoot = Wt::WApplication::instance()->docRoot();
+    boost::filesystem::create_directory(docRoot / "puzzles");
     boost::filesystem::copy(fileName, docRoot / "puzzles" / path.filename());
     boost::filesystem::remove(fileName);
 

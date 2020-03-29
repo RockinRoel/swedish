@@ -44,3 +44,8 @@ else()
 endif()
 
 target_link_libraries(swedish.wt PRIVATE ${BOOST_FILESYSTEM_LIBRARY})
+
+install(TARGETS swedish.wt DESTINATION bin)
+install(DIRECTORY docroot/js DESTINATION docroot)
+install(DIRECTORY docroot/css DESTINATION docroot)
+install(DIRECTORY approot DESTINATION .)
