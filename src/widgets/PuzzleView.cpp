@@ -12,6 +12,7 @@
 #include <Wt/WLength.h>
 #include <Wt/WPaintedWidget.h>
 #include <Wt/WPainter.h>
+#include <Wt/WPainterPath.h>
 #include <Wt/WPen.h>
 #include <Wt/WPushButton.h>
 #include <Wt/WVBoxLayout.h>
@@ -167,10 +168,27 @@ void PuzzleView::TextLayer::paintEvent(Wt::WPaintDevice *paintDevice)
 
         const Wt::WPointF center = square.center();
         const double diameter = minSize * zoom();
-        painter.drawRect(Wt::WRectF(center.x() * zoom() - diameter / 2.0,
-                                    center.y() * zoom() - diameter / 2.0,
-                                    diameter,
-                                    diameter));
+        const Wt::WRectF rect = Wt::WRectF(center.x() * zoom() - diameter / 2.0,
+                                           center.y() * zoom() - diameter / 2.0,
+                                           diameter,
+                                           diameter);
+        painter.drawRect(rect);
+
+        if (puzzleView_->type_ == PuzzleViewType::SolvePuzzle) {
+          Wt::WPainterPath directionArrow;
+          if (puzzleView_->direction_ == Wt::Orientation::Horizontal) {
+            directionArrow.moveTo(rect.right(), rect.center().y() - diameter / 4.0);
+            directionArrow.lineTo(rect.right() + diameter / 4.0, rect.center().y());
+            directionArrow.lineTo(rect.right(), rect.center().y() + diameter / 4.0);
+            directionArrow.closeSubPath();
+          } else if (puzzleView_->direction_ == Wt::Orientation::Vertical) {
+            directionArrow.moveTo(rect.center().x() - diameter / 4.0, rect.bottom());
+            directionArrow.lineTo(rect.center().x(), rect.bottom() + diameter / 4.0);
+            directionArrow.lineTo(rect.center().x() + diameter / 4.0, rect.bottom());
+            directionArrow.closeSubPath();
+          }
+          painter.fillPath(directionArrow, Wt::WBrush(painter.pen().color()));
+        }
       }
 
       if (puzzleView_->type_ == PuzzleViewType::SolvePuzzle) {
@@ -580,6 +598,8 @@ void PuzzleView::changeDirection(Wt::Orientation direction)
   direction_ = direction;
   horizontalBtn_->toggleStyleClass("active", direction_ == Wt::Orientation::Horizontal);
   verticalBtn_->toggleStyleClass("active", direction_ == Wt::Orientation::Vertical);
+
+  textLayer_->update();
 }
 
 void PuzzleView::handleCellValueChanged(long long puzzleId,
