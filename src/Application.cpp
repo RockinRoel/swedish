@@ -52,6 +52,7 @@ Application::Application(const Wt::WEnvironment &env,
   subscriber_.userChangedColor().connect(this, &Application::handleUserChangedColor);
 
   messageResourceBundle().use(appRoot() + "template");
+  messageResourceBundle().use(appRoot() + "strings");
   useStyleSheet("/css/style.css");
 
   auto theme = std::make_shared<Wt::WBootstrapTheme>();
@@ -64,6 +65,10 @@ Application::Application(const Wt::WEnvironment &env,
 
   left_ = layout_->addWidget(std::make_unique<Wt::WContainerWidget>(), 0);
   left_->setWidth(Wt::WLength(300, Wt::LengthUnit::Pixel));
+
+  auto instructionsPanel = left_->addNew<Wt::WPanel>();
+  instructionsPanel->setTitle(Wt::utf8("Instructions"));
+  instructionsPanel->setCentralWidget(std::make_unique<Wt::WTemplate>(Wt::WString::tr("str.swedish.instructions")));
 
   auto usersPanel = left_->addNew<Wt::WPanel>();
   usersPanel->setTitle(Wt::utf8("Users"));

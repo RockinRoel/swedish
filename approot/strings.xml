@@ -1,0 +1,12 @@
+<messages>
+    <message id="str.swedish.instructions">
+        <p>Click on a tile and type to fill in the Swedish puzzle.</p>
+        <ul>
+            <li>Use <b>\</b> or <b>`</b> to quickly switch between horizontal and vertical</li>
+            <li>Use <b>+</b> to zoom in, <b>-</b> to zoom out, or <b>=</b> to set the zoom to 100%</li>
+            <li>Backspace deletes a character before the cursor, and moves the cursor back</li>
+            <li>Delete clears the current cell, but keeps the cursor in the same place</li>
+            <li>In addition to clicking, you can use the arrow keys to navigate the puzzle</li>
+        </ul>
+    </message>
+</messages>
