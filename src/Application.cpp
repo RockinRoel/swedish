@@ -32,11 +32,11 @@ namespace swedish {
 
 Application::Application(const Wt::WEnvironment &env,
                          Wt::Dbo::SqlConnectionPool &pool,
-                         GlobalSession *globalSession,
+                         SharedSession *sharedSession,
                          Dispatcher *dispatcher)
   : WApplication(env),
     session_(pool),
-    globalSession_(globalSession),
+    sharedSession_(sharedSession),
     dispatcher_(dispatcher),
     subscriber_(sessionId()),
     layout_(nullptr),

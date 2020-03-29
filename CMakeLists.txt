@@ -15,9 +15,9 @@ add_executable(
   src/Application.h src/Application.cpp
   src/Direction.h
   src/Dispatcher.h src/Dispatcher.cpp
-  src/GlobalSession.h src/GlobalSession.cpp
   src/Layout.h src/Layout.cpp
   src/Rotation.h
+  src/SharedSession.h src/SharedSession.cpp
   src/UserCopy.h
   src/jobs/SquareFinder.h src/jobs/SquareFinder.cpp
   src/model/User.h src/model/User.cpp

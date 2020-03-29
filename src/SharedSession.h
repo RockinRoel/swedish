@@ -1,5 +1,5 @@
-#ifndef SWEDISH_GLOBALSESSION_H_
-#define SWEDISH_GLOBALSESSION_H_
+#ifndef SWEDISH_SHAREDSESSION_H_
+#define SWEDISH_SHAREDSESSION_H_
 
 #include "model/Puzzle.h"
 #include "model/Session.h"
@@ -17,12 +17,12 @@
 
 namespace swedish {
 
-class GlobalSession final : public std::enable_shared_from_this<GlobalSession> {
+class SharedSession final : public std::enable_shared_from_this<SharedSession> {
 public:
-  GlobalSession(Wt::WIOService *ioService,
+  SharedSession(Wt::WIOService *ioService,
                 std::unique_ptr<Wt::Dbo::SqlConnection> conn);
 
-  ~GlobalSession();
+  ~SharedSession();
 
   void startTimer();
   void stopTimer();
@@ -51,4 +51,4 @@ private:
 
 }
 
-#endif // SWEDISH_GLOBALSESSION_H_
+#endif // SWEDISH_SHAREDSESSION_H_

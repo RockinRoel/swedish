@@ -2,7 +2,6 @@
 #define SWEDISH_PUZZLEVIEW_H_
 
 #include "../Direction.h"
-#include "../GlobalSession.h"
 
 #include "../model/Puzzle.h"
 

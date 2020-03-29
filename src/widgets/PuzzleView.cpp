@@ -1,6 +1,7 @@
 #include "PuzzleView.h"
 
 #include "../Application.h"
+#include "../SharedSession.h"
 #include "../UserCopy.h"
 
 #include <Wt/WApplication.h>
@@ -173,7 +174,7 @@ void PuzzleView::TextLayer::paintEvent(Wt::WPaintDevice *paintDevice)
       }
 
       if (puzzleView_->type_ == PuzzleViewType::SolvePuzzle) {
-        GlobalSession * const session = Application::instance()->globalSession();
+        SharedSession * const session = Application::instance()->sharedSession();
         const std::pair<Character, long long> val = session->charAt(puzzle()->id(), { static_cast<int>(r), static_cast<int>(c) });
         const Character ch = val.first;
         const long long userId = val.second;
@@ -430,7 +431,7 @@ void PuzzleView::handleKeyWentDown(const Wt::WKeyEvent &evt)
   Application * const app = Application::instance();
 
   if (evt.key() == Wt::Key::Delete) {
-    app->globalSession()->updateChar(puzzle_.id(),
+    app->sharedSession()->updateChar(puzzle_.id(),
                                      selectedCell_,
                                      Character::None,
                                      app->user());
@@ -450,7 +451,7 @@ void PuzzleView::handleKeyWentDown(const Wt::WKeyEvent &evt)
       return;
     }
 
-    app->globalSession()->updateChar(puzzle_.id(),
+    app->sharedSession()->updateChar(puzzle_.id(),
                                      previous,
                                      Character::None,
                                      app->user());
@@ -469,8 +470,8 @@ void PuzzleView::handleKeyWentDown(const Wt::WKeyEvent &evt)
   if (evt.key() == Wt::Key::J) {
     const std::pair<int, int> previous = nextCell(selectedCell_, direction_ == Wt::Orientation::Horizontal ? Direction::Left : Direction::Up);
     if (previous != selectedCell_ &&
-        app->globalSession()->charAt(puzzle_.id(), previous).first == Character::I) {
-      app->globalSession()->updateChar(puzzle_.id(),
+        app->sharedSession()->charAt(puzzle_.id(), previous).first == Character::I) {
+      app->sharedSession()->updateChar(puzzle_.id(),
                                        previous,
                                        Character::IJ,
                                        app->user());
@@ -485,8 +486,8 @@ void PuzzleView::handleKeyWentDown(const Wt::WKeyEvent &evt)
     }
     const std::pair<int, int> next = immediateNextCell(selectedCell_, direction_ == Wt::Orientation::Horizontal ? Direction::Right : Direction::Down);
     if (next == std::make_pair(-1, -1) &&
-        app->globalSession()->charAt(puzzle_.id(), selectedCell_).first == Character::I) {
-      app->globalSession()->updateChar(puzzle_.id(),
+        app->sharedSession()->charAt(puzzle_.id(), selectedCell_).first == Character::I) {
+      app->sharedSession()->updateChar(puzzle_.id(),
                                        selectedCell_,
                                        Character::IJ,
                                        app->user());
@@ -532,7 +533,7 @@ void PuzzleView::handleKeyWentDown(const Wt::WKeyEvent &evt)
     std::string s;
     s += static_cast<char>(keyI);
 
-    app->globalSession()->updateChar(puzzle_.id(),
+    app->sharedSession()->updateChar(puzzle_.id(),
                                      selectedCell_,
                                      strToChar(s),
                                      app->user());

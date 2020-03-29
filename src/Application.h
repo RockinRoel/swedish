@@ -4,7 +4,7 @@
 #include <Wt/WApplication.h>
 
 #include "Dispatcher.h"
-#include "GlobalSession.h"
+#include "SharedSession.h"
 #include "UserCopy.h"
 
 #include "model/User.h"
@@ -21,7 +21,7 @@ class Application final : public Wt::WApplication {
 public:
   Application(const Wt::WEnvironment &env,
               Wt::Dbo::SqlConnectionPool &pool,
-              GlobalSession *globalSession,
+              SharedSession *sharedSession,
               Dispatcher *dispatcher);
 
   virtual ~Application() override;
@@ -31,7 +31,7 @@ public:
 
   long long user() const { return user_; }
   const std::vector<UserCopy> &users() { return users_; }
-  GlobalSession *globalSession() { return globalSession_; }
+  SharedSession *sharedSession() { return sharedSession_; }
   Dispatcher *dispatcher() { return dispatcher_; }
   Subscriber *subscriber() { return &subscriber_; }
 
@@ -39,7 +39,7 @@ public:
 
 private:
   Session session_;
-  GlobalSession *globalSession_;
+  SharedSession *sharedSession_;
   Dispatcher *dispatcher_;
   Subscriber subscriber_;
   Wt::WHBoxLayout *layout_;

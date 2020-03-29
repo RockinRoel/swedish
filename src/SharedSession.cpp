@@ -1,4 +1,4 @@
-#include "GlobalSession.h"
+#include "SharedSession.h"
 
 #include <Wt/WLogger.h>
 
@@ -18,7 +18,7 @@ constexpr const std::chrono::seconds interval = 3s;
 
 namespace swedish {
 
-GlobalSession::GlobalSession(Wt::WIOService *ioService,
+SharedSession::SharedSession(Wt::WIOService *ioService,
                              std::unique_ptr<Wt::Dbo::SqlConnection> conn)
   : ioService_(ioService),
     session_(std::move(conn)),
@@ -27,14 +27,14 @@ GlobalSession::GlobalSession(Wt::WIOService *ioService,
   try {
     session_.createTables();
   } catch (Wt::Dbo::Exception &e) {
-    Wt::log("info") << "swedish::GlobalSession" << ": Caught exception: " << e.what();
-    Wt::log("info") << "swedish::GlobalSession" << ": Assuming tables already exist and continuing";
+    Wt::log("info") << "swedish::SharedSession" << ": Caught exception: " << e.what();
+    Wt::log("info") << "swedish::SharedSession" << ": Assuming tables already exist and continuing";
   }
 
   session_.setFlushMode(Wt::Dbo::FlushMode::Manual);
 }
 
-GlobalSession::~GlobalSession()
+SharedSession::~SharedSession()
 {
   {
     std::scoped_lock<std::mutex> lock(mutex_);
@@ -42,27 +42,27 @@ GlobalSession::~GlobalSession()
   }
 
   try {
-    Wt::log("info") << "GlobalSession" << ": last sync";
+    Wt::log("info") << "SharedSession" << ": last sync";
     sync(true);
   } catch (const Wt::Dbo::Exception &e) {
-    Wt::log("error") << "GlobalSession" << ": an error occurred when syncing: " << e.what();
+    Wt::log("error") << "SharedSession" << ": an error occurred when syncing: " << e.what();
   }
 }
 
-void GlobalSession::startTimer()
+void SharedSession::startTimer()
 {
   timer_ = std::make_unique<boost::asio::steady_timer>(*ioService_);
   timer_->expires_after(interval);
-  timer_->async_wait(std::bind(&GlobalSession::timeout, shared_from_this(), std::placeholders::_1));
+  timer_->async_wait(std::bind(&SharedSession::timeout, shared_from_this(), std::placeholders::_1));
 }
 
-void GlobalSession::stopTimer()
+void SharedSession::stopTimer()
 {
   timer_->cancel();
   timer_ = nullptr;
 }
 
-std::pair<Character, long long> GlobalSession::charAt(long long puzzle,
+std::pair<Character, long long> SharedSession::charAt(long long puzzle,
                                                       std::pair<int, int> cellRef)
 {
   if (terminated_)
@@ -80,7 +80,7 @@ std::pair<Character, long long> GlobalSession::charAt(long long puzzle,
   return { cell.character_, cell.user_ };
 }
 
-void GlobalSession::updateChar(long long puzzle,
+void SharedSession::updateChar(long long puzzle,
                                std::pair<int, int> cellRef,
                                Character character,
                                long long user)
@@ -105,7 +105,7 @@ void GlobalSession::updateChar(long long puzzle,
   cell.user_ = user;
 }
 
-Wt::Dbo::ptr<Puzzle> GlobalSession::getPuzzle(long long puzzle)
+Wt::Dbo::ptr<Puzzle> SharedSession::getPuzzle(long long puzzle)
 {
   auto it = std::find_if(begin(puzzles_), end(puzzles_), [puzzle](const Wt::Dbo::ptr<Puzzle> &puzzlePtr) {
     return puzzle == puzzlePtr.id();
@@ -126,7 +126,7 @@ Wt::Dbo::ptr<Puzzle> GlobalSession::getPuzzle(long long puzzle)
   }
 }
 
-void GlobalSession::timeout(boost::system::error_code errc)
+void SharedSession::timeout(boost::system::error_code errc)
 {
   if (errc || terminated_)
     return;
@@ -135,13 +135,13 @@ void GlobalSession::timeout(boost::system::error_code errc)
 
   if (!terminated_) {
     timer_->expires_after(interval);
-    timer_->async_wait(std::bind(&GlobalSession::timeout, shared_from_this(), std::placeholders::_1));
+    timer_->async_wait(std::bind(&SharedSession::timeout, shared_from_this(), std::placeholders::_1));
   }
 }
 
-void GlobalSession::sync(bool last)
+void SharedSession::sync(bool last)
 {
-  Wt::log("info") << "GlobalSession" << ": performing global sync";
+  Wt::log("info") << "SharedSession" << ": performing global sync";
 
   std::scoped_lock<std::mutex> lock(mutex_);
 
