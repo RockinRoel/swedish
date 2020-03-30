@@ -80,29 +80,31 @@ std::pair<Character, long long> SharedSession::charAt(long long puzzle,
   return { cell.character_, cell.user_ };
 }
 
-void SharedSession::updateChar(long long puzzle,
-                               std::pair<int, int> cellRef,
-                               Character character,
-                               long long user)
+std::optional<std::pair<Character, long long>> SharedSession::updateChar(long long puzzle,
+                                                                         std::pair<int, int> cellRef,
+                                                                         Character character,
+                                                                         long long user)
 {
   if (terminated_)
-    return;
+    return std::nullopt;
 
   std::scoped_lock<std::mutex> lock(mutex_);
 
   Wt::Dbo::ptr<Puzzle> puzzlePtr = getPuzzle(puzzle);
 
   if (!puzzlePtr)
-    return;
+    return std::nullopt;
 
   Cell &cell = puzzlePtr.modify()->rows_[static_cast<std::size_t>(cellRef.first)][static_cast<std::size_t>(cellRef.second)];
 
   if (cell.character_ == character) {
-    return;
+    return std::nullopt;
   }
 
+  const auto retval = std::make_pair(cell.character_, cell.user_);
   cell.character_ = character;
   cell.user_ = user;
+  return std::optional(retval);
 }
 
 Wt::Dbo::ptr<Puzzle> SharedSession::getPuzzle(long long puzzle) const

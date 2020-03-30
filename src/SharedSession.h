@@ -27,13 +27,16 @@ public:
   void startTimer();
   void stopTimer();
 
+  // returns (character, userid)
   std::pair<Character, long long> charAt(long long puzzle,
                                          std::pair<int, int> cellRef) const;
 
-  void updateChar(long long puzzle,
-                  std::pair<int, int> cellRef,
-                  Character character,
-                  long long user);
+  // returns the old value (character, userid),
+  // optional since maybe this does nothing
+  std::optional<std::pair<Character, long long>> updateChar(long long puzzle,
+                                                            std::pair<int, int> cellRef,
+                                                            Character character,
+                                                            long long user);
 
 private:
   Wt::WIOService *ioService_;

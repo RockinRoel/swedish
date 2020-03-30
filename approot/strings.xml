@@ -7,6 +7,7 @@
             <li>Backspace deletes a character before the cursor, and moves the cursor back</li>
             <li>Delete clears the current cell, but keeps the cursor in the same place</li>
             <li>In addition to clicking, you can use the arrow keys to navigate the puzzle</li>
+            <li>Use CTRL+Z to undo your last change</li>
         </ul>
     </message>
 </messages>

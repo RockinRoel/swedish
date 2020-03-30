@@ -9,6 +9,7 @@
 #include <Wt/WPointF.h>
 #include <Wt/WSignal.h>
 
+#include <array>
 #include <optional>
 
 namespace swedish {
@@ -35,6 +36,24 @@ private:
   class Layer;
   class PuzzlePaintedWidget;
   class TextLayer;
+
+  class UndoBuffer final {
+  public:
+    struct Entry {
+      std::pair<int, int> cellRef; // cell reference
+      std::pair<Character, long long> before; // userid, character
+      std::pair<Character, long long> after; // userid, character
+    };
+
+    void push(Entry entry); // adds entry to end of buffer, wrapping around as needed
+    std::optional<Entry> pop(); // removes entry, returns nullopt when empty
+
+  private:
+    std::array<Entry, 20> entries_; // 20: undo buffer size
+    std::size_t bufStart_ = 0;
+    std::size_t bufLen_ = 0;
+  };
+  UndoBuffer undoBuffer_;
 
   Wt::Dbo::ptr<Puzzle> puzzle_;
   PuzzlePaintedWidget *paintedWidget_ = nullptr;

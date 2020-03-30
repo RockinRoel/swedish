@@ -269,6 +269,27 @@ void PuzzleView::TextLayer::paintEvent(Wt::WPaintDevice *paintDevice)
   }
 }
 
+void PuzzleView::UndoBuffer::push(Entry entry)
+{
+  if (bufLen_ == entries_.size()) {
+    bufStart_ = (bufStart_ + 1) % entries_.size();
+    --bufLen_;
+  }
+
+  entries_[(bufStart_ + bufLen_) % entries_.size()] = entry;
+  ++bufLen_;
+}
+
+std::optional<PuzzleView::UndoBuffer::Entry> PuzzleView::UndoBuffer::pop()
+{
+  if (bufLen_ == 0) {
+    return std::nullopt;
+  }
+
+  --bufLen_;
+  return entries_[(bufStart_ + bufLen_) % entries_.size()];
+}
+
 PuzzleView::PuzzleView(const Wt::Dbo::ptr<Puzzle> &puzzle,
                        PuzzleViewType type)
   : Wt::WCompositeWidget(std::make_unique<Wt::WContainerWidget>()),
@@ -489,11 +510,42 @@ void PuzzleView::handleKeyWentDown(const Wt::WKeyEvent &evt)
 
   Application * const app = Application::instance();
 
+  if (evt.key() == Wt::Key::Z &&
+      evt.modifiers() == Wt::KeyboardModifier::Control) {
+    // Undo
+    const auto undoEntry = undoBuffer_.pop();
+
+    if (undoEntry) {
+      const auto entry = undoEntry.value();
+
+      const auto currentValue = app->sharedSession()->charAt(puzzle_.id(),
+                                                             entry.cellRef);
+
+      if (currentValue == entry.after) {
+        app->sharedSession()->updateChar(puzzle_.id(),
+                                         entry.cellRef,
+                                         entry.before.first,
+                                         entry.before.second);
+
+        app->dispatcher()->notifyCellValueChanged(app->subscriber(),
+                                                  puzzle_.id(),
+                                                  entry.cellRef);
+
+        textLayer_->update();
+      }
+    }
+
+    return;
+  }
+
   if (evt.key() == Wt::Key::Delete) {
-    app->sharedSession()->updateChar(puzzle_.id(),
-                                     selectedCell_,
-                                     Character::None,
-                                     app->user());
+    const auto previousValue = app->sharedSession()->updateChar(puzzle_.id(),
+                                                                selectedCell_,
+                                                                Character::None,
+                                                                app->user());
+    if (previousValue) {
+      undoBuffer_.push({selectedCell_, previousValue.value(), {Character::None, app->user()}});
+    }
 
     app->dispatcher()->notifyCellValueChanged(app->subscriber(),
                                               puzzle_.id(),
@@ -510,10 +562,14 @@ void PuzzleView::handleKeyWentDown(const Wt::WKeyEvent &evt)
       return;
     }
 
-    app->sharedSession()->updateChar(puzzle_.id(),
-                                     previous,
-                                     Character::None,
-                                     app->user());
+    const auto previousValue = app->sharedSession()->updateChar(puzzle_.id(),
+                                                                previous,
+                                                                Character::None,
+                                                                app->user());
+
+    if (previousValue) {
+      undoBuffer_.push({previous, previousValue.value(), {Character::None, app->user()}});
+    }
 
     app->dispatcher()->notifyCellValueChanged(app->subscriber(),
                                               puzzle_.id(),
@@ -530,10 +586,14 @@ void PuzzleView::handleKeyWentDown(const Wt::WKeyEvent &evt)
     const std::pair<int, int> previous = nextCell(selectedCell_, direction_ == Wt::Orientation::Horizontal ? Direction::Left : Direction::Up);
     if (previous != selectedCell_ &&
         app->sharedSession()->charAt(puzzle_.id(), previous).first == Character::I) {
-      app->sharedSession()->updateChar(puzzle_.id(),
-                                       previous,
-                                       Character::IJ,
-                                       app->user());
+      const auto previousValue = app->sharedSession()->updateChar(puzzle_.id(),
+                                                                  previous,
+                                                                  Character::IJ,
+                                                                  app->user());
+
+      if (previousValue) {
+        undoBuffer_.push({previous, previousValue.value(), {Character::IJ, app->user()}});
+      }
 
       app->dispatcher()->notifyCellValueChanged(app->subscriber(),
                                                 puzzle_.id(),
@@ -546,10 +606,15 @@ void PuzzleView::handleKeyWentDown(const Wt::WKeyEvent &evt)
     const std::pair<int, int> next = immediateNextCell(selectedCell_, direction_ == Wt::Orientation::Horizontal ? Direction::Right : Direction::Down);
     if (next == std::make_pair(-1, -1) &&
         app->sharedSession()->charAt(puzzle_.id(), selectedCell_).first == Character::I) {
-      app->sharedSession()->updateChar(puzzle_.id(),
-                                       selectedCell_,
-                                       Character::IJ,
-                                       app->user());
+
+      const auto previousValue = app->sharedSession()->updateChar(puzzle_.id(),
+                                                                  selectedCell_,
+                                                                  Character::IJ,
+                                                                  app->user());
+
+      if (previousValue) {
+        undoBuffer_.push({selectedCell_, previousValue.value(), {Character::IJ, app->user()}});
+      }
 
       app->dispatcher()->notifyCellValueChanged(app->subscriber(),
                                                 puzzle_.id(),
@@ -593,10 +658,15 @@ void PuzzleView::handleKeyWentDown(const Wt::WKeyEvent &evt)
     std::string s;
     s += static_cast<char>(keyI);
 
-    app->sharedSession()->updateChar(puzzle_.id(),
-                                     selectedCell_,
-                                     strToChar(s),
-                                     app->user());
+    const Character ch = strToChar(s);
+    const auto previousValue = app->sharedSession()->updateChar(puzzle_.id(),
+                                                                selectedCell_,
+                                                                ch,
+                                                                app->user());
+
+    if (previousValue) {
+      undoBuffer_.push({selectedCell_, previousValue.value(), {ch, app->user()}});
+    }
 
     app->dispatcher()->notifyCellValueChanged(app->subscriber(),
                                               puzzle_.id(),
