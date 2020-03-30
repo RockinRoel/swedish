@@ -28,7 +28,7 @@ public:
   void stopTimer();
 
   std::pair<Character, long long> charAt(long long puzzle,
-                                         std::pair<int, int> cellRef);
+                                         std::pair<int, int> cellRef) const;
 
   void updateChar(long long puzzle,
                   std::pair<int, int> cellRef,
@@ -38,13 +38,13 @@ public:
 private:
   Wt::WIOService *ioService_;
   std::unique_ptr<boost::asio::steady_timer> timer_;
-  Session session_;
-  std::mutex mutex_;
-  std::vector<Wt::Dbo::ptr<Puzzle>> puzzles_;
+  mutable Session session_;
+  mutable std::mutex mutex_;
+  mutable std::vector<Wt::Dbo::ptr<Puzzle>> puzzles_;
   std::atomic_bool terminated_;
 
   // NOTE: NEED LOCK BEFORE CALLING THIS
-  Wt::Dbo::ptr<Puzzle> getPuzzle(long long puzzle);
+  Wt::Dbo::ptr<Puzzle> getPuzzle(long long puzzle) const;
   void timeout(boost::system::error_code errc);
   void sync(bool last);
 };

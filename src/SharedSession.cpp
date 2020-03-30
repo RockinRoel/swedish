@@ -63,7 +63,7 @@ void SharedSession::stopTimer()
 }
 
 std::pair<Character, long long> SharedSession::charAt(long long puzzle,
-                                                      std::pair<int, int> cellRef)
+                                                      std::pair<int, int> cellRef) const
 {
   if (terminated_)
     return { Character::None, -1 };
@@ -105,7 +105,7 @@ void SharedSession::updateChar(long long puzzle,
   cell.user_ = user;
 }
 
-Wt::Dbo::ptr<Puzzle> SharedSession::getPuzzle(long long puzzle)
+Wt::Dbo::ptr<Puzzle> SharedSession::getPuzzle(long long puzzle) const
 {
   auto it = std::find_if(begin(puzzles_), end(puzzles_), [puzzle](const Wt::Dbo::ptr<Puzzle> &puzzlePtr) {
     return puzzle == puzzlePtr.id();

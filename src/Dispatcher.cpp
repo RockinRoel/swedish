@@ -71,6 +71,55 @@ void Dispatcher::notifyCellValueChanged(Subscriber *self,
   }
 }
 
+void Dispatcher::notifyCursorMoved(Subscriber *self,
+                                   long long puzzleId,
+                                   long long user,
+                                   std::pair<int, int> cellRef,
+                                   Wt::Orientation direction)
+{
+  {
+    std::scoped_lock<std::mutex> lock(positionMutex_);
+
+    auto it = std::find_if(begin(userPositions_), end(userPositions_), [user](const UserCursor &cursor) {
+      return user == cursor.userId;
+    });
+
+    if (puzzleId == -1 ||
+         cellRef == std::make_pair(-1, -1)) {
+      if (it != end(userPositions_)) {
+        userPositions_.erase(it);
+      } else {
+        return;
+      }
+    } else if (it != end(userPositions_)) {
+      it->puzzleId = puzzleId;
+      it->cellRef = cellRef;
+      it->direction = direction;
+    } else {
+      userPositions_.push_back({puzzleId, user, cellRef, direction});
+    }
+  }
+
+  {
+    std::scoped_lock<std::mutex> lock(subscriberMutex_);
+
+    for (auto subscriber : subscribers_) {
+      if (self == subscriber)
+        continue;
+      server_->post(subscriber->sessionId(), [subscriber, puzzleId, user, cellRef, direction]{
+        subscriber->cursorMoved().emit(puzzleId, user, cellRef, direction);
+      });
+    }
+  }
+}
+
+std::vector<UserCursor> Dispatcher::userPositions() const
+{
+  std::scoped_lock<std::mutex> lock(positionMutex_);
+
+  return userPositions_;
+}
+
 Subscriber::Subscriber(const std::string &sessionId)
   : sessionId_(sessionId)
 { }

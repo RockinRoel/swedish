@@ -30,9 +30,11 @@ public:
   virtual void finalize() override;
 
   long long user() const { return user_; }
-  const std::vector<UserCopy> &users() { return users_; }
+  const std::vector<UserCopy> &users() const { return users_; }
   SharedSession *sharedSession() { return sharedSession_; }
+  const SharedSession *sharedSession() const { return sharedSession_; }
   Dispatcher *dispatcher() { return dispatcher_; }
+  const Dispatcher *dispatcher() const { return dispatcher_; }
   Subscriber *subscriber() { return &subscriber_; }
 
   static Application *instance() { return dynamic_cast<Application *>(Wt::WApplication::instance()); }

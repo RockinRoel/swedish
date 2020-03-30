@@ -50,6 +50,7 @@ private:
   Wt::Orientation direction_ = Wt::Orientation::Horizontal;
 
   Wt::WContainerWidget *impl();
+  void setSelectedCell(std::pair<int, int> cellRef);
   void zoomIn();
   void zoomOut();
   void setZoom(double zoom);
@@ -58,6 +59,10 @@ private:
   void handleKeyPressed(const Wt::WKeyEvent &evt);
   void changeDirection(Wt::Orientation direction);
   void handleCellValueChanged(long long puzzleId, std::pair<int, int> cellRef);
+  void handleCursorMoved(long long puzzleId,
+                         long long userId,
+                         std::pair<int, int> cellRef,
+                         Wt::Orientation direction);
   std::pair<int, int> nextCell(std::pair<int, int> cellRef,
                                Direction direction) const;
   std::pair<int, int> immediateNextCell(std::pair<int, int> cellRef,

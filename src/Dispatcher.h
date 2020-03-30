@@ -16,6 +16,13 @@ namespace swedish {
 
 class Subscriber;
 
+struct UserCursor {
+  long long puzzleId = -1;
+  long long userId = -1;
+  std::pair<int, int> cellRef = {-1, -1};
+  Wt::Orientation direction = Wt::Orientation::Horizontal;
+};
+
 // one dispatcher in the entire program, to send events
 class Dispatcher final {
 public:
@@ -37,10 +44,20 @@ public:
                               long long puzzleId,
                               std::pair<int, int> cellRef);
 
+  void notifyCursorMoved(Subscriber *self,
+                         long long puzzleId,
+                         long long user,
+                         std::pair<int, int> cellRef,
+                         Wt::Orientation direction);
+
+  std::vector<UserCursor> userPositions() const;
+
 private:
-  Wt::WServer *server_;
   std::mutex subscriberMutex_;
+  mutable std::mutex positionMutex_;
+  Wt::WServer *server_;
   std::vector<Subscriber *> subscribers_;
+  std::vector<UserCursor> userPositions_;
 };
 
 // one subsciber per WApplication, to receive events
@@ -53,12 +70,14 @@ public:
   Wt::Signal<long long, const Wt::WString &, const Wt::WColor &> &userAdded() { return userAdded_; }
   Wt::Signal<long long, const Wt::WColor &> &userChangedColor() { return userChangedColor_; }
   Wt::Signal<long long, std::pair<int, int>> &cellValueChanged() { return cellValueChanged_; }
+  Wt::Signal<long long, long long, std::pair<int, int>, Wt::Orientation> &cursorMoved() { return cursorMoved_; }
 
 private:
   std::string sessionId_;
   Wt::Signal<long long, const Wt::WString &, const Wt::WColor &> userAdded_;
   Wt::Signal<long long, const Wt::WColor &> userChangedColor_;
   Wt::Signal<long long, std::pair<int, int>> cellValueChanged_;
+  Wt::Signal<long long, long long, std::pair<int, int>, Wt::Orientation> cursorMoved_;
 };
 
 }

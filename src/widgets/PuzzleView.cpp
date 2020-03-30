@@ -135,6 +135,10 @@ void PuzzleView::TextLayer::paintEvent(Wt::WPaintDevice *paintDevice)
   Wt::WFont font;
   font.setFamily(Wt::FontFamily::SansSerif);
 
+  const Application *app = Application::instance();
+  const std::vector<UserCursor> userCursors = puzzleView_->type_ == PuzzleViewType::SolvePuzzle ?
+        app->dispatcher()->userPositions() : std::vector<UserCursor>();
+
   for (std::size_t r = 0; r < puzzle()->rows_.size(); ++r) {
     const auto &row = puzzle()->rows_[r];
     for (std::size_t c = 0; c < row.size(); ++c) {
@@ -146,42 +150,51 @@ void PuzzleView::TextLayer::paintEvent(Wt::WPaintDevice *paintDevice)
       const Wt::WRectF &square = cell.square;
       const double minSize = std::min(square.width(), square.height());
 
-      if ((puzzleView_->type_ == PuzzleViewType::SolvePuzzle &&
-           std::make_pair(static_cast<int>(r), static_cast<int>(c)) == puzzleView_->selectedCell_) ||
-          puzzleView_->type_ == PuzzleViewType::ViewCells) {
-        if (puzzleView_->type_ == PuzzleViewType::SolvePuzzle) {
-          Application *app = Application::instance();
-          const auto &users = Application::instance()->users();
-          const long long userId = app->user();
-          const auto it = std::find_if(std::begin(users), std::end(users), [userId](const auto &user) {
+      auto cellRef = std::make_pair(static_cast<int>(r), static_cast<int>(c));
+      std::vector<std::pair<long long, Wt::Orientation>> cellUsers;
+      for (const auto &cursor : userCursors) {
+        if (cursor.userId == app->user())
+          continue;
+        if (cursor.cellRef == cellRef) {
+          cellUsers.push_back({cursor.userId, cursor.direction});
+        }
+      }
+      if (cellRef == puzzleView_->selectedCell_) {
+        cellUsers.push_back({app->user(), puzzleView_->direction_});
+      }
+
+      if (puzzleView_->type_ == PuzzleViewType::SolvePuzzle &&
+          !cellUsers.empty()) {
+        for (const auto &cellUser : cellUsers) {
+          const auto userId = cellUser.first;
+          const auto direction = cellUser.second;
+          const auto &users = app->users();
+          const auto it = std::find_if(begin(users), end(users), [userId](const auto &user) {
             return user.id == userId;
           });
-          if (it == std::end(users)) {
+          if (it == end(users)) {
             painter.setPen(Wt::WPen(Wt::StandardColor::Black));
           } else {
             painter.setPen(Wt::WPen(it->color));
           }
-        } else {
-          painter.setPen(Wt::WPen(Wt::StandardColor::Red));
-        }
-        painter.setBrush(Wt::BrushStyle::None);
+          painter.setBrush(Wt::BrushStyle::None);
 
-        const Wt::WPointF center = square.center();
-        const double diameter = minSize * zoom();
-        const Wt::WRectF rect = Wt::WRectF(center.x() * zoom() - diameter / 2.0,
-                                           center.y() * zoom() - diameter / 2.0,
-                                           diameter,
-                                           diameter);
-        painter.drawRect(rect);
+          const Wt::WPointF center = square.center();
+          const double diameter = minSize * zoom();
+          const Wt::WRectF rect = Wt::WRectF(center.x() * zoom() - diameter / 2.0,
+                                             center.y() * zoom() - diameter / 2.0,
+                                             diameter,
+                                             diameter);
+          painter.drawRect(rect);
 
-        if (puzzleView_->type_ == PuzzleViewType::SolvePuzzle) {
           Wt::WPainterPath directionArrow;
-          if (puzzleView_->direction_ == Wt::Orientation::Horizontal) {
+          if (direction == Wt::Orientation::Horizontal) {
             directionArrow.moveTo(rect.right(), rect.center().y() - diameter / 4.0);
             directionArrow.lineTo(rect.right() + diameter / 4.0, rect.center().y());
             directionArrow.lineTo(rect.right(), rect.center().y() + diameter / 4.0);
             directionArrow.closeSubPath();
-          } else if (puzzleView_->direction_ == Wt::Orientation::Vertical) {
+          } else {
+            assert(direction == Wt::Orientation::Vertical);
             directionArrow.moveTo(rect.center().x() - diameter / 4.0, rect.bottom());
             directionArrow.lineTo(rect.center().x(), rect.bottom() + diameter / 4.0);
             directionArrow.lineTo(rect.center().x() + diameter / 4.0, rect.bottom());
@@ -191,9 +204,23 @@ void PuzzleView::TextLayer::paintEvent(Wt::WPaintDevice *paintDevice)
         }
       }
 
+      if (puzzleView_->type_ == PuzzleViewType::ViewCells) {
+        painter.setPen(Wt::WPen(Wt::StandardColor::Red));
+        painter.setBrush(Wt::BrushStyle::None);
+
+        const Wt::WPointF center = square.center();
+        const double w = square.width() * zoom();
+        const double h = square.height() * zoom();
+        const Wt::WRectF rect = Wt::WRectF(center.x() * zoom() - w / 2.0,
+                                           center.y() * zoom() - h / 2.0,
+                                           w,
+                                           h);
+        painter.drawRect(rect);
+      }
+
       if (puzzleView_->type_ == PuzzleViewType::SolvePuzzle) {
-        SharedSession * const session = Application::instance()->sharedSession();
-        const std::pair<Character, long long> val = session->charAt(puzzle()->id(), { static_cast<int>(r), static_cast<int>(c) });
+        const SharedSession * const session = app->sharedSession();
+        const std::pair<Character, long long> val = session->charAt(puzzle()->id(), cellRef);
         const Character ch = val.first;
         const long long userId = val.second;
 
@@ -202,7 +229,7 @@ void PuzzleView::TextLayer::paintEvent(Wt::WPaintDevice *paintDevice)
           font.setSize(Wt::WLength(0.7 * minSize * zoom()));
           painter.setFont(font);
 
-          const auto &users = Application::instance()->users();
+          const auto &users = app->users();
           const auto it = std::find_if(std::begin(users), std::end(users), [userId](const auto &user) {
             return user.id == userId;
           });
@@ -248,7 +275,7 @@ PuzzleView::PuzzleView(const Wt::Dbo::ptr<Puzzle> &puzzle,
     puzzle_(puzzle),
     type_(type)
 {
-  Wt::WApplication *app = Wt::WApplication::instance();
+  Application *app = Application::instance();
   app->useStyleSheet(Wt::WApplication::relativeResourcesUrl() +
                      "font-awesome/css/font-awesome.min.css");
 
@@ -338,8 +365,8 @@ PuzzleView::PuzzleView(const Wt::Dbo::ptr<Puzzle> &puzzle,
       verticalBtn_->clicked().connect(std::bind(&PuzzleView::changeDirection, this, Wt::Orientation::Vertical));
 
       app->globalKeyWentDown().connect(this, &PuzzleView::handleKeyWentDown);
-
-      Application::instance()->subscriber()->cellValueChanged().connect(this, &PuzzleView::handleCellValueChanged);
+      app->subscriber()->cellValueChanged().connect(this, &PuzzleView::handleCellValueChanged);
+      app->subscriber()->cursorMoved().connect(this, &PuzzleView::handleCursorMoved);
     }
 
     textLayer_->clicked().connect(this, &PuzzleView::handleClick);
@@ -375,6 +402,20 @@ void PuzzleView::setClickedPoint(const Wt::WPointF &point)
 Wt::WContainerWidget *PuzzleView::impl()
 {
   return static_cast<Wt::WContainerWidget *>(implementation());
+}
+
+void PuzzleView::setSelectedCell(std::pair<int, int> cellRef)
+{
+  if (cellRef == selectedCell_)
+    return;
+
+  selectedCell_ = cellRef;
+  Application *app = Application::instance();
+  app->dispatcher()->notifyCursorMoved(app->subscriber(),
+                                       puzzle_.id(),
+                                       app->user(),
+                                       cellRef,
+                                       direction_);
 }
 
 void PuzzleView::zoomIn()
@@ -426,7 +467,7 @@ void PuzzleView::handleClick(const Wt::WMouseEvent &evt)
       }
     }
 
-    selectedCell_ = closestCell;
+    setSelectedCell(closestCell);
 
     textLayer_->update();
   } else {
@@ -478,7 +519,7 @@ void PuzzleView::handleKeyWentDown(const Wt::WKeyEvent &evt)
                                               puzzle_.id(),
                                               previous);
 
-    selectedCell_ = previous;
+    setSelectedCell(previous);
 
     textLayer_->update();
 
@@ -514,7 +555,8 @@ void PuzzleView::handleKeyWentDown(const Wt::WKeyEvent &evt)
                                                 puzzle_.id(),
                                                 selectedCell_);
 
-      selectedCell_ = nextCell(selectedCell_, direction_ == Wt::Orientation::Horizontal ? Direction::Right : Direction::Down);
+      auto newSelectedCell = nextCell(selectedCell_, direction_ == Wt::Orientation::Horizontal ? Direction::Right : Direction::Down);
+      setSelectedCell(newSelectedCell);
 
       textLayer_->update();
 
@@ -523,22 +565,22 @@ void PuzzleView::handleKeyWentDown(const Wt::WKeyEvent &evt)
   }
 
   if (evt.key() == Wt::Key::Up) {
-    selectedCell_ = nextCell(selectedCell_, Direction::Up);
+    setSelectedCell(nextCell(selectedCell_, Direction::Up));
     textLayer_->update();
     return;
   }
   if (evt.key() == Wt::Key::Right) {
-    selectedCell_ = nextCell(selectedCell_, Direction::Right);
+    setSelectedCell(nextCell(selectedCell_, Direction::Right));
     textLayer_->update();
     return;
   }
   if (evt.key() == Wt::Key::Down) {
-    selectedCell_ = nextCell(selectedCell_, Direction::Down);
+    setSelectedCell(nextCell(selectedCell_, Direction::Down));
     textLayer_->update();
     return;
   }
   if (evt.key() == Wt::Key::Left) {
-    selectedCell_ = nextCell(selectedCell_, Direction::Left);
+    setSelectedCell(nextCell(selectedCell_, Direction::Left));
     textLayer_->update();
     return;
   }
@@ -560,7 +602,7 @@ void PuzzleView::handleKeyWentDown(const Wt::WKeyEvent &evt)
                                               puzzle_.id(),
                                               selectedCell_);
 
-    selectedCell_ = nextCell(selectedCell_, direction_ == Wt::Orientation::Horizontal ? Direction::Right : Direction::Down);
+    setSelectedCell(nextCell(selectedCell_, direction_ == Wt::Orientation::Horizontal ? Direction::Right : Direction::Down));
 
     textLayer_->update();
   }
@@ -600,6 +642,13 @@ void PuzzleView::changeDirection(Wt::Orientation direction)
   verticalBtn_->toggleStyleClass("active", direction_ == Wt::Orientation::Vertical);
 
   textLayer_->update();
+
+  Application *app = Application::instance();
+  app->dispatcher()->notifyCursorMoved(app->subscriber(),
+                                       puzzle_.id(),
+                                       app->user(),
+                                       selectedCell_,
+                                       direction_);
 }
 
 void PuzzleView::handleCellValueChanged(long long puzzleId,
@@ -610,6 +659,23 @@ void PuzzleView::handleCellValueChanged(long long puzzleId,
   if (puzzleId != puzzle_->id()) {
     return;
   }
+
+  textLayer_->update();
+
+  Application::instance()->triggerUpdate();
+}
+
+void PuzzleView::handleCursorMoved(long long puzzleId,
+                                   long long userId,
+                                   std::pair<int, int> cellRef,
+                                   Wt::Orientation direction)
+{
+  (void) puzzleId;
+  (void) cellRef;
+  (void) direction;
+
+  if (Application::instance()->user() == userId)
+    return;
 
   textLayer_->update();
 

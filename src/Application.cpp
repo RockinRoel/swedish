@@ -241,6 +241,14 @@ void Application::initialize()
 
 void Application::finalize()
 {
+  if (user_ != -1) {
+    dispatcher_->notifyCursorMoved(&subscriber_,
+                                   -1,
+                                   user_,
+                                   std::make_pair(-1, -1),
+                                   Wt::Orientation::Horizontal);
+  }
+
   dispatcher_->removeSubscriber(&subscriber_);
 }
 
