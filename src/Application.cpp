@@ -80,7 +80,7 @@ Application::Application(const Wt::WEnvironment &env,
     Wt::Dbo::Transaction t(session_);
 
     {
-      Wt::Dbo::collection<Wt::Dbo::ptr<User>> users = session_.find<User>();
+      Wt::Dbo::collection<Wt::Dbo::ptr<User>> users = session_.find<User>().orderBy("id");
 
       for (const auto &user: users) {
         users_.push_back({user.id(), user->name, user->color});
