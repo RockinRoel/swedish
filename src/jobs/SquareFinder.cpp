@@ -207,6 +207,8 @@ void SquareFinder::determineSquares(const std::vector<unsigned char> &buf,
     auto p = queue.front();
     queue.pop_front();
 
+    updateStatus(Processing { static_cast<int>(queue.size()) });
+
     const int cur_x = p.x;
     const int cur_y = p.y;
     const double prev_area = p.area;
@@ -248,6 +250,10 @@ void SquareFinder::determineSquares(const std::vector<unsigned char> &buf,
     queue.push_back({new_c_x, new_c_y - new_r_h, area, row - 1, col});
     queue.push_back({new_c_x + new_r_w, new_c_y, area, row, col + 1});
     queue.push_back({new_c_x, new_c_y + new_r_h, area, row + 1, col});
+    queue.push_back({new_c_x - new_r_w * 2, new_c_y, area, row, col - 2});
+    queue.push_back({new_c_x, new_c_y - new_r_h * 2, area, row - 2, col});
+    queue.push_back({new_c_x + new_r_w * 2, new_c_y, area, row, col + 2});
+    queue.push_back({new_c_x, new_c_y + new_r_h * 2, area, row + 2, col});
 
     updateStatus(Processing { static_cast<int>(queue.size()) });
   }
