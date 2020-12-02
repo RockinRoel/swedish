@@ -206,7 +206,7 @@ void PuzzleView::TextLayer::paintEvent(Wt::WPaintDevice *paintDevice)
 
       if (puzzleView_->type_ == PuzzleViewType::ViewCells) {
         painter.setPen(Wt::WPen(Wt::StandardColor::Red));
-        painter.setBrush(Wt::BrushStyle::None);
+        painter.setBrush(Wt::WBrush(Wt::WColor(255, 0, 0, 120)));
 
         const Wt::WPointF center = square.center();
         const double w = square.width() * zoom();
