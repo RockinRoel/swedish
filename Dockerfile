@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2021 Roel Standaert <roel@abittechnical.com>
+#
+# SPDX-License-Identifier: GPL-2.0-only
+
 FROM alpine:latest AS builder
 
 RUN apk add git gcc g++ cmake ninja boost-dev graphicsmagick-dev postgresql-dev zlib-dev

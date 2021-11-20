@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2021 Roel Standaert <roel@abittechnical.com>
+
+SPDX-License-Identifier: CC0-1.0
+-->
+
 # Swedish: solve crossword puzzles together
 
 ## Build and run
