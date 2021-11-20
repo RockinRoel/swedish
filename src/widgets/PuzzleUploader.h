@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-2.0-only
 
-#ifndef SWEDISH_PUZZLEUPLOADER_H_
-#define SWEDISH_PUZZLEUPLOADER_H_
+#pragma once
 
 #include "../model/Puzzle.h"
 #include "../Rotation.h"
@@ -54,5 +53,3 @@ private:
 };
 
 }
-
-#endif // SWEDISH_PUZZLEUPLOADER_H_

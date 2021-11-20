@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-2.0-only
 
-#ifndef SWEDISH_LAYOUT_H_
-#define SWEDISH_LAYOUT_H_
+#pragma once
 
 #include <Wt/WCompositeWidget.h>
 
@@ -19,5 +18,3 @@ private:
 };
 
 }
-
-#endif // SWEDISH_LAYOUT_H_

@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-2.0-only
 
-#ifndef SWEDISH_SHAREDSESSION_H_
-#define SWEDISH_SHAREDSESSION_H_
+#pragma once
 
 #include "model/Puzzle.h"
 #include "model/Session.h"
@@ -57,5 +56,3 @@ private:
 };
 
 }
-
-#endif // SWEDISH_SHAREDSESSION_H_

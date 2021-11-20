@@ -14,22 +14,24 @@ Dispatcher::Dispatcher(Wt::WServer *server)
   : server_(server)
 { }
 
-void Dispatcher::addSubsriber(Subscriber *subscriber)
+void Dispatcher::addSubsriber(Subscriber &subscriber)
 {
   std::scoped_lock<std::mutex> lock(subscriberMutex_);
-  subscribers_.push_back(subscriber);
+  subscribers_.emplace_back(subscriber);
 }
 
-void Dispatcher::removeSubscriber(Subscriber *subscriber)
+void Dispatcher::removeSubscriber(Subscriber &subscriber)
 {
   std::scoped_lock<std::mutex> lock(subscriberMutex_);
 
-  auto it = std::find(begin(subscribers_), end(subscribers_), subscriber);
+  auto it = std::find_if(begin(subscribers_), end(subscribers_), [&subscriber](auto &s) {
+    return &s.get() == &subscriber;
+  });
   if (it != end(subscribers_))
     subscribers_.erase(it);
 }
 
-void Dispatcher::notifyUserAdded(Subscriber *self,
+void Dispatcher::notifyUserAdded(Subscriber &self,
                                  long long id,
                                  const Wt::WString &name,
                                  const Wt::WColor &color)
@@ -37,45 +39,45 @@ void Dispatcher::notifyUserAdded(Subscriber *self,
   std::scoped_lock<std::mutex> lock(subscriberMutex_);
 
   for (auto subscriber : subscribers_) {
-    if (self == subscriber)
+    if (&self == &subscriber.get())
       continue;
-    server_->post(subscriber->sessionId(), [subscriber, id, name, color]{
-      subscriber->userAdded().emit(id, name, color);
+    server_->post(subscriber.get().sessionId(), [subscriber, id, name, color]{
+      subscriber.get().userAdded().emit(id, name, color);
     });
   }
 }
 
-void Dispatcher::notifyUserChangedColor(Subscriber *self,
+void Dispatcher::notifyUserChangedColor(Subscriber &self,
                                         long long id,
                                         const Wt::WColor &color)
 {
   std::scoped_lock<std::mutex> lock(subscriberMutex_);
 
   for (auto subscriber : subscribers_) {
-    if (self == subscriber)
+    if (&self == &subscriber.get())
       continue;
-    server_->post(subscriber->sessionId(), [subscriber, id, color]{
-      subscriber->userChangedColor().emit(id, color);
+    server_->post(subscriber.get().sessionId(), [subscriber, id, color]{
+      subscriber.get().userChangedColor().emit(id, color);
     });
   }
 }
 
-void Dispatcher::notifyCellValueChanged(Subscriber *self,
+void Dispatcher::notifyCellValueChanged(Subscriber &self,
                                         long long puzzleId,
                                         std::pair<int, int> cellRef)
 {
   std::scoped_lock<std::mutex> lock(subscriberMutex_);
 
   for (auto subscriber : subscribers_) {
-    if (self == subscriber)
+    if (&self == &subscriber.get())
       continue;
-    server_->post(subscriber->sessionId(), [subscriber, puzzleId, cellRef]{
-      subscriber->cellValueChanged().emit(puzzleId, cellRef);
+    server_->post(subscriber.get().sessionId(), [subscriber, puzzleId, cellRef]{
+      subscriber.get().cellValueChanged().emit(puzzleId, cellRef);
     });
   }
 }
 
-void Dispatcher::notifyCursorMoved(Subscriber *self,
+void Dispatcher::notifyCursorMoved(Subscriber &self,
                                    long long puzzleId,
                                    long long user,
                                    std::pair<int, int> cellRef,
@@ -89,7 +91,7 @@ void Dispatcher::notifyCursorMoved(Subscriber *self,
     });
 
     if (puzzleId == -1 ||
-         cellRef == std::make_pair(-1, -1)) {
+         cellRef == std::pair(-1, -1)) {
       if (it != end(userPositions_)) {
         userPositions_.erase(it);
       } else {
@@ -108,10 +110,10 @@ void Dispatcher::notifyCursorMoved(Subscriber *self,
     std::scoped_lock<std::mutex> lock(subscriberMutex_);
 
     for (auto subscriber : subscribers_) {
-      if (self == subscriber)
+      if (&self == &subscriber.get())
         continue;
-      server_->post(subscriber->sessionId(), [subscriber, puzzleId, user, cellRef, direction]{
-        subscriber->cursorMoved().emit(puzzleId, user, cellRef, direction);
+      server_->post(subscriber.get().sessionId(), [subscriber, puzzleId, user, cellRef, direction]{
+        subscriber.get().cursorMoved().emit(puzzleId, user, cellRef, direction);
       });
     }
   }

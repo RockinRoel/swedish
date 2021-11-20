@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-2.0-only
 
-#ifndef SWEDISH_APPLICATION_H_
-#define SWEDISH_APPLICATION_H_
+#pragma once
 
 #include <Wt/WApplication.h>
 
@@ -14,6 +13,7 @@
 #include "model/User.h"
 #include "model/Session.h"
 
+#include <functional>
 #include <vector>
 
 namespace swedish {
@@ -25,28 +25,31 @@ class Application final : public Wt::WApplication {
 public:
   Application(const Wt::WEnvironment &env,
               Wt::Dbo::SqlConnectionPool &pool,
-              SharedSession *sharedSession,
-              Dispatcher *dispatcher);
+              SharedSession &sharedSession,
+              Dispatcher &dispatcher);
 
-  virtual ~Application() override;
+  ~Application() override;
 
-  virtual void initialize() override;
-  virtual void finalize() override;
+  void initialize() override;
+  void finalize() override;
 
   long long user() const { return user_; }
   const std::vector<UserCopy> &users() const { return users_; }
-  SharedSession *sharedSession() { return sharedSession_; }
-  const SharedSession *sharedSession() const { return sharedSession_; }
-  Dispatcher *dispatcher() { return dispatcher_; }
-  const Dispatcher *dispatcher() const { return dispatcher_; }
-  Subscriber *subscriber() { return &subscriber_; }
+
+  SharedSession &sharedSession() { return sharedSession_; }
+  const SharedSession &sharedSession() const { return sharedSession_; }
+
+  Dispatcher &dispatcher() { return dispatcher_; }
+  const Dispatcher &dispatcher() const { return dispatcher_; }
+
+  Subscriber &subscriber() { return subscriber_; }
 
   static Application *instance() { return dynamic_cast<Application *>(Wt::WApplication::instance()); }
 
 private:
   Session session_;
-  SharedSession *sharedSession_;
-  Dispatcher *dispatcher_;
+  std::reference_wrapper<SharedSession> sharedSession_;
+  std::reference_wrapper<Dispatcher> dispatcher_;
   Subscriber subscriber_;
   Wt::WHBoxLayout *layout_;
   Wt::WVBoxLayout *rightLayout_;
@@ -73,5 +76,3 @@ private:
 };
 
 }
-
-#endif // SWEDISH_APPLICATION_H_

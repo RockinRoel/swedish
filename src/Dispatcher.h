@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-2.0-only
 
-#ifndef SWEDISH_DISPATCHER_H_
-#define SWEDISH_DISPATCHER_H_
+#pragma once
 
 #include <Wt/WSignal.h>
 
@@ -32,23 +31,23 @@ class Dispatcher final {
 public:
   Dispatcher(Wt::WServer *server);
 
-  void addSubsriber(Subscriber *subscriber);
-  void removeSubscriber(Subscriber *subscriber);
+  void addSubsriber(Subscriber &subscriber);
+  void removeSubscriber(Subscriber &subscriber);
 
-  void notifyUserAdded(Subscriber *self,
+  void notifyUserAdded(Subscriber &self,
                        long long id,
                        const Wt::WString &name,
                        const Wt::WColor &color);
 
-  void notifyUserChangedColor(Subscriber *self,
+  void notifyUserChangedColor(Subscriber &self,
                               long long id,
                               const Wt::WColor &color);
 
-  void notifyCellValueChanged(Subscriber *self,
+  void notifyCellValueChanged(Subscriber &self,
                               long long puzzleId,
                               std::pair<int, int> cellRef);
 
-  void notifyCursorMoved(Subscriber *self,
+  void notifyCursorMoved(Subscriber &self,
                          long long puzzleId,
                          long long user,
                          std::pair<int, int> cellRef,
@@ -60,7 +59,7 @@ private:
   std::mutex subscriberMutex_;
   mutable std::mutex positionMutex_;
   Wt::WServer *server_;
-  std::vector<Subscriber *> subscribers_;
+  std::vector<std::reference_wrapper<Subscriber>> subscribers_;
   std::vector<UserCursor> userPositions_;
 };
 
@@ -85,5 +84,3 @@ private:
 };
 
 }
-
-#endif // SWEDISH_DISPATCHER_H_

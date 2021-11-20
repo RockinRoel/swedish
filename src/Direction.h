@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-2.0-only
 
-#ifndef SWEDISH_DIRECTION_H_
-#define SWEDISH_DIRECTION_H_
+#pragma once
 
 namespace swedish {
 
@@ -15,5 +14,3 @@ enum class Direction {
 };
 
 }
-
-#endif // SWEDISH_DIRECTION_H_

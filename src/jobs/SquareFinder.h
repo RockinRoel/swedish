@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-2.0-only
 
-#ifndef SWEDISH_SQUAREFINDER_H_
-#define SWEDISH_SQUAREFINDER_H_
+#pragma once
 
 #include "../Rotation.h"
 #include "../model/Puzzle.h"
@@ -30,9 +29,8 @@ public:
   struct Done {};
   using Status = std::variant<ReadingImage, Processing, PopulatingPuzzle, Done>;
 
-  SquareFinder(Puzzle &puzzle,
-               int x, int y);
-  ~SquareFinder();
+  SquareFinder(Puzzle &puzzle, int x, int y);
+  ~SquareFinder() override;
 
   void start();
 
@@ -56,16 +54,8 @@ private:
 
   void abort();
   bool stopRequested();
-  Wt::WRectF determineSquare(const std::vector<unsigned char> &buf,
-                             const int w,
-                             const int h,
-                             const int x,
-                             const int y);
-  void determineSquares(const std::vector<unsigned char> &buf,
-                        const int w,
-                        const int h,
-                        const int x,
-                        const int y);
+  Wt::WRectF determineSquare(const std::vector<unsigned char> &buf, int w, int h, int x, int y);
+  void determineSquares(const std::vector<unsigned char> &buf, int w, int h, int x, int y);
   void populatePuzzle();
   static std::vector<unsigned char> extractImageData(const std::string &path,
                                                      Rotation rotation,
@@ -74,5 +64,3 @@ private:
 };
 
 }
-
-#endif // SWEDISH_SQUAREFINDER_H_

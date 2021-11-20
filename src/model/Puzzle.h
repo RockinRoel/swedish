@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-2.0-only
 
-#ifndef SWEDISH_PUZZLE_H_
-#define SWEDISH_PUZZLE_H_
+#pragma once
 
 #include "../Rotation.h"
 
@@ -59,7 +58,7 @@ struct Cell final {
   Character character_ = Character::None;
   long long user_ = -1;
 
-  inline bool isNull() const noexcept
+  [[nodiscard]] inline bool isNull() const noexcept
   {
     return square.isNull();
   }
@@ -76,7 +75,7 @@ public:
   std::vector<Row> rows_;
 
   Cell &cell(int row, int col) { return rows_[static_cast<std::size_t>(row)][static_cast<std::size_t>(col)]; }
-  const Cell &cell(int row, int col) const { return rows_[static_cast<std::size_t>(row)][static_cast<std::size_t>(col)]; }
+  [[nodiscard]] const Cell &cell(int row, int col) const { return rows_[static_cast<std::size_t>(row)][static_cast<std::size_t>(col)]; }
 
   template<typename Action>
   void persist(Action &a)
@@ -96,12 +95,10 @@ public:
   }
 
 private:
-  Wt::Json::Object encodeJson() const;
+  [[nodiscard]] Wt::Json::Object encodeJson() const;
   void decodeJson(const Wt::Json::Object &json);
 };
 
 }
 
 DBO_EXTERN_TEMPLATES(swedish::Puzzle)
-
-#endif // SWEDISH_PUZZLE_H_

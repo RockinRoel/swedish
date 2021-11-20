@@ -23,8 +23,7 @@ Session::Session(Wt::Dbo::SqlConnectionPool &pool)
   init();
 }
 
-Session::~Session()
-{ }
+Session::~Session() = default;
 
 void Session::init()
 {

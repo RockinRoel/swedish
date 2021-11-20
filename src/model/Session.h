@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-2.0-only
 
-#ifndef SWEDISH_SESSION_H_
-#define SWEDISH_SESSION_H_
+#pragma once
 
 #include <Wt/Dbo/Session.h>
 
@@ -13,14 +12,12 @@ namespace swedish {
 
 class Session final : public Wt::Dbo::Session {
 public:
-  Session(std::unique_ptr<Wt::Dbo::SqlConnection> conn);
-  Session(Wt::Dbo::SqlConnectionPool &pool);
-  virtual ~Session() override;
+  explicit Session(std::unique_ptr<Wt::Dbo::SqlConnection> conn);
+  explicit Session(Wt::Dbo::SqlConnectionPool &pool);
+  ~Session() override;
 
 private:
   void init();
 };
 
 }
-
-#endif // SWEDISH_SESSION_H_

@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-2.0-only
 
-#ifndef SWEDISH_PUZZLEVIEW_H_
-#define SWEDISH_PUZZLEVIEW_H_
+#pragma once
 
 #include "../Direction.h"
 
@@ -28,7 +27,7 @@ class PuzzleView final : public Wt::WCompositeWidget {
 public:
   PuzzleView(const Wt::Dbo::ptr<Puzzle> &puzzle,
              PuzzleViewType type);
-  virtual ~PuzzleView() override;
+  ~PuzzleView() override;
 
   void update();
 
@@ -41,10 +40,12 @@ private:
   class PuzzlePaintedWidget;
   class TextLayer;
 
+  using CellRef = std::pair<int, int>;
+
   class UndoBuffer final {
   public:
     struct Entry {
-      std::pair<int, int> cellRef; // cell reference
+      CellRef cellRef; // cell reference
       std::pair<Character, long long> before; // userid, character
       std::pair<Character, long long> after; // userid, character
     };
@@ -62,7 +63,7 @@ private:
   Wt::Dbo::ptr<Puzzle> puzzle_;
   PuzzlePaintedWidget *paintedWidget_ = nullptr;
   TextLayer *textLayer_ = nullptr;
-  std::pair<int, int> selectedCell_ = { -1, -1 };
+  CellRef selectedCell_ = { -1, -1 };
   Wt::Signal<Wt::WPointF> clickPositionChanged_;
   std::optional<Wt::WPointF> clickPosition_;
 
@@ -73,7 +74,7 @@ private:
   Wt::Orientation direction_ = Wt::Orientation::Horizontal;
 
   Wt::WContainerWidget *impl();
-  void setSelectedCell(std::pair<int, int> cellRef);
+  void setSelectedCell(CellRef cellRef);
   void zoomIn();
   void zoomOut();
   void setZoom(double zoom);
@@ -81,17 +82,13 @@ private:
   void handleKeyWentDown(const Wt::WKeyEvent &evt);
   void handleKeyPressed(const Wt::WKeyEvent &evt);
   void changeDirection(Wt::Orientation direction);
-  void handleCellValueChanged(long long puzzleId, std::pair<int, int> cellRef);
+  void handleCellValueChanged(long long puzzleId, CellRef cellRef);
   void handleCursorMoved(long long puzzleId,
                          long long userId,
-                         std::pair<int, int> cellRef,
+                         CellRef cellRef,
                          Wt::Orientation direction);
-  std::pair<int, int> nextCell(std::pair<int, int> cellRef,
-                               Direction direction) const;
-  std::pair<int, int> immediateNextCell(std::pair<int, int> cellRef,
-                                        Direction direction) const;
+  [[nodiscard]] CellRef nextCell(CellRef cellRef, Direction direction) const;
+  [[nodiscard]] CellRef immediateNextCell(CellRef cellRef, Direction direction) const;
 };
 
 }
-
-#endif // SWEDISH_PUZZLEVIEW_H_

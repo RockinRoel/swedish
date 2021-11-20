@@ -41,8 +41,8 @@ namespace swedish {
 
 class PuzzleView::Layer : public Wt::WPaintedWidget {
 public:
-  Layer(PuzzleView *puzzleView);
-  virtual ~Layer() override;
+  explicit Layer(PuzzleView *puzzleView);
+  ~Layer() override;
 
   double zoom() const { return puzzleView_->zoom_; }
   const Puzzle *puzzle() const { return puzzleView_->puzzle_.get(); }
@@ -53,30 +53,27 @@ protected:
 
 class PuzzleView::PuzzlePaintedWidget final : public PuzzleView::Layer {
 public:
-  PuzzlePaintedWidget(PuzzleView *puzzleView);
-  virtual ~PuzzlePaintedWidget() override;
+  explicit PuzzlePaintedWidget(PuzzleView *puzzleView);
+  ~PuzzlePaintedWidget() override;
 
 protected:
-  virtual void paintEvent(Wt::WPaintDevice *paintDevice) override;
+  void paintEvent(Wt::WPaintDevice *paintDevice) override;
 };
 
 class PuzzleView::TextLayer final : public PuzzleView::Layer {
 public:
-  TextLayer(PuzzleView * puzzleView);
-  virtual ~TextLayer() override;
-
-  void setSelectedCell(const Cell *cell);
+  explicit TextLayer(PuzzleView *puzzleView);
+  ~TextLayer() override;
 
 protected:
-  virtual void paintEvent(Wt::WPaintDevice *paintDevice) override;
+  void paintEvent(Wt::WPaintDevice *paintDevice) override;
 };
 
 PuzzleView::Layer::Layer(PuzzleView *puzzleView)
   : puzzleView_(puzzleView)
 { }
 
-PuzzleView::Layer::~Layer()
-{ }
+PuzzleView::Layer::~Layer() = default;
 
 PuzzleView::PuzzlePaintedWidget::PuzzlePaintedWidget(PuzzleView *puzzleView)
   : Layer(puzzleView)
@@ -84,8 +81,7 @@ PuzzleView::PuzzlePaintedWidget::PuzzlePaintedWidget(PuzzleView *puzzleView)
   auto puzzle = puzzleView->puzzle_;
 }
 
-PuzzleView::PuzzlePaintedWidget::~PuzzlePaintedWidget()
-{ }
+PuzzleView::PuzzlePaintedWidget::~PuzzlePaintedWidget() = default;
 
 void PuzzleView::PuzzlePaintedWidget::paintEvent(Wt::WPaintDevice *paintDevice)
 {
@@ -126,8 +122,7 @@ PuzzleView::TextLayer::TextLayer(PuzzleView *puzzleView)
   setOffsets(Wt::WLength(0, Wt::LengthUnit::Pixel), Wt::Side::Top | Wt::Side::Left);
 }
 
-PuzzleView::TextLayer::~TextLayer()
-{ }
+PuzzleView::TextLayer::~TextLayer() = default;
 
 void PuzzleView::TextLayer::paintEvent(Wt::WPaintDevice *paintDevice)
 {
@@ -141,7 +136,7 @@ void PuzzleView::TextLayer::paintEvent(Wt::WPaintDevice *paintDevice)
 
   const Application *app = Application::instance();
   const std::vector<UserCursor> userCursors = puzzleView_->type_ == PuzzleViewType::SolvePuzzle ?
-        app->dispatcher()->userPositions() : std::vector<UserCursor>();
+        app->dispatcher().userPositions() : std::vector<UserCursor>();
 
   for (std::size_t r = 0; r < puzzle()->rows_.size(); ++r) {
     const auto &row = puzzle()->rows_[r];
@@ -159,12 +154,14 @@ void PuzzleView::TextLayer::paintEvent(Wt::WPaintDevice *paintDevice)
       for (const auto &cursor : userCursors) {
         if (cursor.userId == app->user())
           continue;
+        if (cursor.puzzleId != puzzle()->id())
+          continue;
         if (cursor.cellRef == cellRef) {
-          cellUsers.push_back({cursor.userId, cursor.direction});
+          cellUsers.emplace_back(cursor.userId, cursor.direction);
         }
       }
       if (cellRef == puzzleView_->selectedCell_) {
-        cellUsers.push_back({app->user(), puzzleView_->direction_});
+        cellUsers.emplace_back(app->user(), puzzleView_->direction_);
       }
 
       if (puzzleView_->type_ == PuzzleViewType::SolvePuzzle &&
@@ -223,8 +220,8 @@ void PuzzleView::TextLayer::paintEvent(Wt::WPaintDevice *paintDevice)
       }
 
       if (puzzleView_->type_ == PuzzleViewType::SolvePuzzle) {
-        const SharedSession * const session = app->sharedSession();
-        const std::pair<Character, long long> val = session->charAt(puzzle()->id(), cellRef);
+        const SharedSession &session = app->sharedSession();
+        const std::pair<Character, long long> val = session.charAt(puzzle()->id(), cellRef);
         const Character ch = val.first;
         const long long userId = val.second;
 
@@ -386,12 +383,16 @@ PuzzleView::PuzzleView(const Wt::Dbo::ptr<Puzzle> &puzzle,
       horizontalBtn_->setText(Wt::utf8("<i class=\"fa fa-caret-right\"></i> Horizontal"));
       verticalBtn_->setText(Wt::utf8("<i class=\"fa fa-caret-down\"></i> Vertical"));
 
-      horizontalBtn_->clicked().connect(std::bind(&PuzzleView::changeDirection, this, Wt::Orientation::Horizontal));
-      verticalBtn_->clicked().connect(std::bind(&PuzzleView::changeDirection, this, Wt::Orientation::Vertical));
+      horizontalBtn_->clicked().connect([this]{
+        changeDirection(Wt::Orientation::Horizontal);
+      });
+      verticalBtn_->clicked().connect([this]{
+        changeDirection(Wt::Orientation::Vertical);
+      });
 
       app->globalKeyWentDown().connect(this, &PuzzleView::handleKeyWentDown);
-      app->subscriber()->cellValueChanged().connect(this, &PuzzleView::handleCellValueChanged);
-      app->subscriber()->cursorMoved().connect(this, &PuzzleView::handleCursorMoved);
+      app->subscriber().cellValueChanged().connect(this, &PuzzleView::handleCellValueChanged);
+      app->subscriber().cursorMoved().connect(this, &PuzzleView::handleCursorMoved);
     }
 
     textLayer_->clicked().connect(this, &PuzzleView::handleClick);
@@ -409,8 +410,7 @@ PuzzleView::PuzzleView(const Wt::Dbo::ptr<Puzzle> &puzzle,
   zoomOutBtn_->clicked().connect(this, &PuzzleView::zoomOut);
 }
 
-PuzzleView::~PuzzleView()
-{ }
+PuzzleView::~PuzzleView() = default;
 
 void PuzzleView::update()
 {
@@ -429,18 +429,18 @@ Wt::WContainerWidget *PuzzleView::impl()
   return static_cast<Wt::WContainerWidget *>(implementation());
 }
 
-void PuzzleView::setSelectedCell(std::pair<int, int> cellRef)
+void PuzzleView::setSelectedCell(CellRef cellRef)
 {
   if (cellRef == selectedCell_)
     return;
 
   selectedCell_ = cellRef;
   Application *app = Application::instance();
-  app->dispatcher()->notifyCursorMoved(app->subscriber(),
-                                       puzzle_.id(),
-                                       app->user(),
-                                       cellRef,
-                                       direction_);
+  app->dispatcher().notifyCursorMoved(app->subscriber(),
+                                      puzzle_.id(),
+                                      app->user(),
+                                      cellRef,
+                                      direction_);
 }
 
 void PuzzleView::zoomIn()
@@ -473,7 +473,7 @@ void PuzzleView::handleClick(const Wt::WMouseEvent &evt)
   const double y = coords.y / zoom_;
 
   if (type_ == PuzzleViewType::SolvePuzzle) {
-    std::pair<int, int> closestCell = { -1,  -1};
+    CellRef closestCell = { -1,  -1};
     double smallestDistance = -1;
     for (std::size_t r = 0; r < puzzle_->rows_.size(); ++r) {
       const auto &row = puzzle_->rows_[r];
@@ -522,18 +522,17 @@ void PuzzleView::handleKeyWentDown(const Wt::WKeyEvent &evt)
     if (undoEntry) {
       const auto entry = undoEntry.value();
 
-      const auto currentValue = app->sharedSession()->charAt(puzzle_.id(),
-                                                             entry.cellRef);
+      const auto currentValue = app->sharedSession().charAt(puzzle_.id(), entry.cellRef);
 
       if (currentValue == entry.after) {
-        app->sharedSession()->updateChar(puzzle_.id(),
-                                         entry.cellRef,
-                                         entry.before.first,
-                                         entry.before.second);
+        app->sharedSession().updateChar(puzzle_.id(),
+                                        entry.cellRef,
+                                        entry.before.first,
+                                        entry.before.second);
 
-        app->dispatcher()->notifyCellValueChanged(app->subscriber(),
-                                                  puzzle_.id(),
-                                                  entry.cellRef);
+        app->dispatcher().notifyCellValueChanged(app->subscriber(),
+                                                 puzzle_.id(),
+                                                 entry.cellRef);
 
         textLayer_->update();
       }
@@ -543,17 +542,17 @@ void PuzzleView::handleKeyWentDown(const Wt::WKeyEvent &evt)
   }
 
   if (evt.key() == Wt::Key::Delete) {
-    const auto previousValue = app->sharedSession()->updateChar(puzzle_.id(),
-                                                                selectedCell_,
-                                                                Character::None,
-                                                                app->user());
+    const auto previousValue = app->sharedSession().updateChar(puzzle_.id(),
+                                                               selectedCell_,
+                                                               Character::None,
+                                                               app->user());
     if (previousValue) {
       undoBuffer_.push({selectedCell_, previousValue.value(), {Character::None, app->user()}});
     }
 
-    app->dispatcher()->notifyCellValueChanged(app->subscriber(),
-                                              puzzle_.id(),
-                                              selectedCell_);
+    app->dispatcher().notifyCellValueChanged(app->subscriber(),
+                                             puzzle_.id(),
+                                             selectedCell_);
 
     textLayer_->update();
 
@@ -561,23 +560,23 @@ void PuzzleView::handleKeyWentDown(const Wt::WKeyEvent &evt)
   }
 
   if (evt.key() == Wt::Key::Backspace) {
-    const std::pair<int, int> previous = nextCell(selectedCell_, direction_ == Wt::Orientation::Horizontal ? Direction::Left : Direction::Up);
+    const CellRef previous = nextCell(selectedCell_, direction_ == Wt::Orientation::Horizontal ? Direction::Left : Direction::Up);
     if (previous == std::make_pair(-1, -1)) {
       return;
     }
 
-    const auto previousValue = app->sharedSession()->updateChar(puzzle_.id(),
-                                                                previous,
-                                                                Character::None,
-                                                                app->user());
+    const auto previousValue = app->sharedSession().updateChar(puzzle_.id(),
+                                                               previous,
+                                                               Character::None,
+                                                               app->user());
 
     if (previousValue) {
       undoBuffer_.push({previous, previousValue.value(), {Character::None, app->user()}});
     }
 
-    app->dispatcher()->notifyCellValueChanged(app->subscriber(),
-                                              puzzle_.id(),
-                                              previous);
+    app->dispatcher().notifyCellValueChanged(app->subscriber(),
+                                             puzzle_.id(),
+                                             previous);
 
     setSelectedCell(previous);
 
@@ -587,42 +586,42 @@ void PuzzleView::handleKeyWentDown(const Wt::WKeyEvent &evt)
   }
 
   if (evt.key() == Wt::Key::J) {
-    const std::pair<int, int> previous = nextCell(selectedCell_, direction_ == Wt::Orientation::Horizontal ? Direction::Left : Direction::Up);
+    const CellRef previous = nextCell(selectedCell_, direction_ == Wt::Orientation::Horizontal ? Direction::Left : Direction::Up);
     if (previous != selectedCell_ &&
-        app->sharedSession()->charAt(puzzle_.id(), previous).first == Character::I) {
-      const auto previousValue = app->sharedSession()->updateChar(puzzle_.id(),
-                                                                  previous,
-                                                                  Character::IJ,
-                                                                  app->user());
+        app->sharedSession().charAt(puzzle_.id(), previous).first == Character::I) {
+      const auto previousValue = app->sharedSession().updateChar(puzzle_.id(),
+                                                                 previous,
+                                                                 Character::IJ,
+                                                                 app->user());
 
       if (previousValue) {
         undoBuffer_.push({previous, previousValue.value(), {Character::IJ, app->user()}});
       }
 
-      app->dispatcher()->notifyCellValueChanged(app->subscriber(),
-                                                puzzle_.id(),
-                                                previous);
+      app->dispatcher().notifyCellValueChanged(app->subscriber(),
+                                               puzzle_.id(),
+                                               previous);
 
       textLayer_->update();
 
       return;
     }
-    const std::pair<int, int> next = immediateNextCell(selectedCell_, direction_ == Wt::Orientation::Horizontal ? Direction::Right : Direction::Down);
+    const CellRef next = immediateNextCell(selectedCell_, direction_ == Wt::Orientation::Horizontal ? Direction::Right : Direction::Down);
     if (next == std::make_pair(-1, -1) &&
-        app->sharedSession()->charAt(puzzle_.id(), selectedCell_).first == Character::I) {
+        app->sharedSession().charAt(puzzle_.id(), selectedCell_).first == Character::I) {
 
-      const auto previousValue = app->sharedSession()->updateChar(puzzle_.id(),
-                                                                  selectedCell_,
-                                                                  Character::IJ,
-                                                                  app->user());
+      const auto previousValue = app->sharedSession().updateChar(puzzle_.id(),
+                                                                 selectedCell_,
+                                                                 Character::IJ,
+                                                                 app->user());
 
       if (previousValue) {
         undoBuffer_.push({selectedCell_, previousValue.value(), {Character::IJ, app->user()}});
       }
 
-      app->dispatcher()->notifyCellValueChanged(app->subscriber(),
-                                                puzzle_.id(),
-                                                selectedCell_);
+      app->dispatcher().notifyCellValueChanged(app->subscriber(),
+                                               puzzle_.id(),
+                                               selectedCell_);
 
       auto newSelectedCell = nextCell(selectedCell_, direction_ == Wt::Orientation::Horizontal ? Direction::Right : Direction::Down);
       setSelectedCell(newSelectedCell);
@@ -663,18 +662,18 @@ void PuzzleView::handleKeyWentDown(const Wt::WKeyEvent &evt)
     s += static_cast<char>(keyI);
 
     const Character ch = strToChar(s);
-    const auto previousValue = app->sharedSession()->updateChar(puzzle_.id(),
-                                                                selectedCell_,
-                                                                ch,
-                                                                app->user());
+    const auto previousValue = app->sharedSession().updateChar(puzzle_.id(),
+                                                               selectedCell_,
+                                                               ch,
+                                                               app->user());
 
     if (previousValue) {
       undoBuffer_.push({selectedCell_, previousValue.value(), {ch, app->user()}});
     }
 
-    app->dispatcher()->notifyCellValueChanged(app->subscriber(),
-                                              puzzle_.id(),
-                                              selectedCell_);
+    app->dispatcher().notifyCellValueChanged(app->subscriber(),
+                                             puzzle_.id(),
+                                             selectedCell_);
 
     setSelectedCell(nextCell(selectedCell_, direction_ == Wt::Orientation::Horizontal ? Direction::Right : Direction::Down));
 
@@ -718,15 +717,15 @@ void PuzzleView::changeDirection(Wt::Orientation direction)
   textLayer_->update();
 
   Application *app = Application::instance();
-  app->dispatcher()->notifyCursorMoved(app->subscriber(),
-                                       puzzle_.id(),
-                                       app->user(),
-                                       selectedCell_,
-                                       direction_);
+  app->dispatcher().notifyCursorMoved(app->subscriber(),
+                                      puzzle_.id(),
+                                      app->user(),
+                                      selectedCell_,
+                                      direction_);
 }
 
 void PuzzleView::handleCellValueChanged(long long puzzleId,
-                                        std::pair<int, int> cellRef)
+                                        CellRef cellRef)
 {
   (void) cellRef;
 
@@ -739,25 +738,17 @@ void PuzzleView::handleCellValueChanged(long long puzzleId,
   Application::instance()->triggerUpdate();
 }
 
-void PuzzleView::handleCursorMoved(long long puzzleId,
-                                   long long userId,
-                                   std::pair<int, int> cellRef,
-                                   Wt::Orientation direction)
+void PuzzleView::handleCursorMoved([[maybe_unused]] long long puzzleId,
+                                   [[maybe_unused]] long long userId,
+                                   [[maybe_unused]] CellRef cellRef,
+                                   [[maybe_unused]] Wt::Orientation direction)
 {
-  (void) puzzleId;
-  (void) cellRef;
-  (void) direction;
-
-  if (Application::instance()->user() == userId)
-    return;
-
   textLayer_->update();
 
   Application::instance()->triggerUpdate();
 }
 
-std::pair<int, int> PuzzleView::nextCell(std::pair<int, int> cellRef,
-                                         Direction direction) const
+PuzzleView::CellRef PuzzleView::nextCell(CellRef cellRef, Direction direction) const
 {
   if (cellRef == std::make_pair(-1, -1)) {
     return cellRef;
@@ -820,7 +811,7 @@ std::pair<int, int> PuzzleView::nextCell(std::pair<int, int> cellRef,
   }
 }
 
-std::pair<int, int> PuzzleView::immediateNextCell(std::pair<int, int> cellRef,
+PuzzleView::CellRef PuzzleView::immediateNextCell(CellRef cellRef,
                                                   Direction direction) const
 {
   // For checking the previous cell, for 'ij'

@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-2.0-only
 
-#ifndef SWEDISH_ROTATION_H_
-#define SWEDISH_ROTATION_H_
+#pragma once
 
 #include <cassert>
 
@@ -59,5 +58,3 @@ constexpr static inline Rotation degreesToRotation(const int degrees) noexcept
 }
 
 }
-
-#endif // SWEDISH_ROTATION_H_

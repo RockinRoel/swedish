@@ -47,8 +47,8 @@ int main(int argc, char *argv[]) {
   Wt::Dbo::FixedSqlConnectionPool pool(std::move(conn), 10);
 
   server.addEntryPoint(Wt::EntryPointType::Application,
-                       [&pool,sharedSession=sharedSession.get(),&dispatcher](const Wt::WEnvironment &env) {
-    return std::make_unique<Application>(env, pool, sharedSession, &dispatcher);
+                       [&pool,sharedSession=std::ref(*sharedSession),&dispatcher](const Wt::WEnvironment &env) {
+    return std::make_unique<Application>(env, pool, sharedSession, dispatcher);
   });
 
   if (server.start()) {

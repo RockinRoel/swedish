@@ -36,8 +36,8 @@ namespace swedish {
 
 Application::Application(const Wt::WEnvironment &env,
                          Wt::Dbo::SqlConnectionPool &pool,
-                         SharedSession *sharedSession,
-                         Dispatcher *dispatcher)
+                         SharedSession &sharedSession,
+                         Dispatcher &dispatcher)
   : WApplication(env),
     session_(pool),
     sharedSession_(sharedSession),
@@ -96,7 +96,7 @@ Application::Application(const Wt::WEnvironment &env,
   font.setFamily(Wt::FontFamily::SansSerif);
   font.setSize(16);
   font.setWeight(Wt::FontWeight::Bold);
-  for (auto user : users_) {
+  for (auto&& user : users_) {
     auto c = userList_->addNew<Wt::WContainerWidget>();
     c->addNew<Wt::WText>(user.name, Wt::TextFormat::Plain);
     c->decorationStyle().setFont(font);
@@ -164,7 +164,7 @@ Application::Application(const Wt::WEnvironment &env,
 
   auto chooseUserDialog = addChild(std::make_unique<Wt::WDialog>(Wt::utf8("Choose user")));
 
-  for (auto user : users_) {
+  for (auto&& user : users_) {
     auto btn = chooseUserDialog->contents()->addNew<Wt::WPushButton>();
     btn->setTextFormat(Wt::TextFormat::Plain);
     btn->setText(user.name);
@@ -198,7 +198,7 @@ Application::Application(const Wt::WEnvironment &env,
       session_.flush();
       user_ = userPtr.id();
     }
-    dispatcher_->notifyUserAdded(&subscriber_, user_, name, color);
+    dispatcher_.get().notifyUserAdded(subscriber_, user_, name, color);
     handleUserAdded(user_, name, color);
     left_->addWidget(createChangeColorPanel(color));
     chooseUserDialog->done(Wt::DialogCode::Accepted);
@@ -240,20 +240,20 @@ Application::~Application()
 
 void Application::initialize()
 {
-  dispatcher_->addSubsriber(&subscriber_);
+  dispatcher_.get().addSubsriber(subscriber_);
 }
 
 void Application::finalize()
 {
   if (user_ != -1) {
-    dispatcher_->notifyCursorMoved(&subscriber_,
-                                   -1,
-                                   user_,
-                                   std::make_pair(-1, -1),
-                                   Wt::Orientation::Horizontal);
+    dispatcher_.get().notifyCursorMoved(subscriber_,
+                                        -1,
+                                        user_,
+                                        std::pair(-1, -1),
+                                        Wt::Orientation::Horizontal);
   }
 
-  dispatcher_->removeSubscriber(&subscriber_);
+  dispatcher_.get().removeSubscriber(subscriber_);
 }
 
 std::unique_ptr<Wt::WPanel> Application::createChangeColorPanel(const Wt::WColor &color)
@@ -275,7 +275,7 @@ std::unique_ptr<Wt::WPanel> Application::createChangeColorPanel(const Wt::WColor
       user.modify()->color = color;
     }
 
-    dispatcher_->notifyUserChangedColor(&subscriber_, user_, color);
+    dispatcher_.get().notifyUserChangedColor(subscriber_, user_, color);
 
     handleUserChangedColor(user_, color);
   });

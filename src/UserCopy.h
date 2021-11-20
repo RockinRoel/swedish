@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-2.0-only
 
-#ifndef SWEDISH_USERCOPY_H_
-#define SWEDISH_USERCOPY_H_
+#pragma once
 
 #include <Wt/WColor.h>
 #include <Wt/WString.h>
@@ -17,5 +16,3 @@ struct UserCopy {
 };
 
 }
-
-#endif // SWEDISH_USERCOPY_H_

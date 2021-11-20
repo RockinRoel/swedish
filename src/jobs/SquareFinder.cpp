@@ -17,7 +17,6 @@
 #include <algorithm>
 #include <chrono>
 #include <deque>
-#include <iostream>
 #include <optional>
 
 namespace {
@@ -27,10 +26,10 @@ inline Wt::WColor bufpix(const unsigned char * const buf,
                          const int x,
                          const int y)
 {
-  const std::size_t offset = static_cast<std::size_t>((y * width + x) * 4);
-  return Wt::WColor(static_cast<int>(*(buf + offset)),
-                    static_cast<int>(*(buf + offset + 1)),
-                    static_cast<int>(*(buf + offset + 2)));
+  const auto offset = static_cast<std::size_t>((y * width + x) * 4);
+  return {static_cast<int>(*(buf + offset)),
+              static_cast<int>(*(buf + offset + 1)),
+              static_cast<int>(*(buf + offset + 2))};
 }
 
 inline double lightness(const unsigned char * const buf,

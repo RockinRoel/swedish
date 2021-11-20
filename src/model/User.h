@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-2.0-only
 
-#ifndef SWEDISH_USER_H_
-#define SWEDISH_USER_H_
+#pragma once
 
 #include <Wt/WColor.h>
 
@@ -18,8 +17,7 @@
 #include <sstream>
 #include <string>
 
-namespace Wt {
-namespace Dbo {
+namespace Wt::Dbo {
 
 template<>
 struct sql_value_traits< ::Wt::WColor>
@@ -29,10 +27,8 @@ struct sql_value_traits< ::Wt::WColor>
     return sql_value_traits<std::string>::type(conn, size);
   }
 
-  static void bind(WColor c, SqlStatement *statement, int column, int size)
+  static void bind(const WColor &c, SqlStatement *statement, int column, [[maybe_unused]] int size)
   {
-    (void)size;
-
     std::ostringstream ss;
     ss.imbue(std::locale::classic());
     ss << std::hex
@@ -78,7 +74,6 @@ struct sql_value_traits< ::Wt::WColor>
 };
 
 }
-}
 
 namespace swedish {
 
@@ -98,5 +93,3 @@ public:
 }
 
 DBO_EXTERN_TEMPLATES(swedish::User)
-
-#endif // SWEDISH_USER_H_
