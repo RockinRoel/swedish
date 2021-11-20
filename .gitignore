@@ -10,3 +10,4 @@ CMakeLists.txt.user
 /.idea
 /cmake-build-*
 /approot/wt_config.xml
+/config
