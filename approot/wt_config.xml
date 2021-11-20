@@ -1,9 +1,0 @@
-<server>
-  <application-settings location="*">
-    <max-request-size>10240</max-request-size>
-    <web-sockets>true</web-sockets>
-    <properties>
-      <property name="connection_string">user=roel password=hypersecure port=5432 dbname=swedish host=127.0.0.1</property>
-    </properties>
-  </application-settings>
-</server>

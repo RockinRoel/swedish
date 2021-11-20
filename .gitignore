@@ -1,5 +1,12 @@
+# SPDX-FileCopyrightText: 2021 Roel Standaert <roel@abittechnical.com>
+#
+# SPDX-License-Identifier: CC0-1.0
+
 CMakeLists.txt.user
 /build
 *.autosave
 /docroot/puzzles/*.jpg
 /install-dir
+/.idea
+/cmake-build-*
+/approot/wt_config.xml

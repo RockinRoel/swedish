@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2021 Roel Standaert <roel@abittechnical.com>
+//
+// SPDX-License-Identifier: GPL-2.0-only
+
 #ifndef SWEDISH_DISPATCHER_H_
 #define SWEDISH_DISPATCHER_H_
 

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2021 Roel Standaert <roel@abittechnical.com>
+//
+// SPDX-License-Identifier: GPL-2.0-only
+
 #include "SharedSession.h"
 
 #include <Wt/WLogger.h>

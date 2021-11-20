@@ -1,8 +1,12 @@
+# SPDX-FileCopyrightText: 2021 Roel Standaert <roel@abittechnical.com>
+#
+# SPDX-License-Identifier: GPL-2.0-only
+
 cmake_minimum_required(VERSION 3.10...3.17)
 
 project(swedish)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -23,7 +27,6 @@ add_executable(
   src/model/User.h src/model/User.cpp
   src/model/Puzzle.h src/model/Puzzle.cpp
   src/model/Session.h src/model/Session.cpp
-  src/widgets/ColorPicker.h src/widgets/ColorPicker.cpp
   src/widgets/PuzzleUploader.h src/widgets/PuzzleUploader.cpp
   src/widgets/PuzzleView.h src/widgets/PuzzleView.cpp
 )
@@ -46,12 +49,5 @@ endif()
 target_link_libraries(swedish.wt PRIVATE ${BOOST_FILESYSTEM_LIBRARY})
 
 install(TARGETS swedish.wt DESTINATION bin)
-install(
-  FILES scripts/run.sh
-  DESTINATION bin
-  PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
-              GROUP_READ GROUP_EXECUTE
-              WORLD_READ WORLD_EXECUTE)
-install(DIRECTORY docroot/js DESTINATION docroot)
 install(DIRECTORY docroot/css DESTINATION docroot)
 install(DIRECTORY approot DESTINATION .)

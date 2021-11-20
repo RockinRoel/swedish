@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2021 Roel Standaert <roel@abittechnical.com>
+//
+// SPDX-License-Identifier: GPL-2.0-only
+
 #ifndef SWEDISH_PUZZLEVIEW_H_
 #define SWEDISH_PUZZLEVIEW_H_
 

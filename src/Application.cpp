@@ -1,7 +1,12 @@
+// SPDX-FileCopyrightText: 2021 Roel Standaert <roel@abittechnical.com>
+//
+// SPDX-License-Identifier: GPL-2.0-only
+
 #include "Application.h"
 
 #include <Wt/WBootstrapTheme.h>
 #include <Wt/WBreak.h>
+#include <Wt/WColorPicker.h>
 #include <Wt/WContainerWidget.h>
 #include <Wt/WCssDecorationStyle.h>
 #include <Wt/WDialog.h>
@@ -21,7 +26,6 @@
 
 #include "model/Puzzle.h"
 #include "model/User.h"
-#include "widgets/ColorPicker.h"
 #include "widgets/PuzzleView.h"
 #include "widgets/PuzzleUploader.h"
 
@@ -178,12 +182,12 @@ Application::Application(const Wt::WEnvironment &env,
   auto newUserLabel = chooseUserDialog->contents()->addNew<Wt::WLabel>(Wt::utf8("New user: "));
   auto newUserName = chooseUserDialog->contents()->addNew<Wt::WLineEdit>();
   newUserLabel->setBuddy(newUserName);
-  auto newUserColor = chooseUserDialog->contents()->addNew<ColorPicker>();
+  auto newUserColor = chooseUserDialog->contents()->addNew<Wt::WColorPicker>();
   auto newUserButton = chooseUserDialog->contents()->addNew<Wt::WPushButton>(Wt::utf8("Create"));
 
   newUserButton->clicked().connect([this,newUserName,newUserColor,chooseUserDialog,font]{
     Wt::WString name = newUserName->valueText();
-    Wt::WColor color = newUserColor->pickedColor();
+    Wt::WColor color = newUserColor->color();
     {
       Wt::Dbo::Transaction t(session_);
 
@@ -258,11 +262,11 @@ std::unique_ptr<Wt::WPanel> Application::createChangeColorPanel(const Wt::WColor
   changeColorPanel->setTitle(Wt::utf8("Change color"));
 
   auto changeColorContainer = changeColorPanel->setCentralWidget(std::make_unique<Wt::WContainerWidget>());
-  auto colorPicker = changeColorContainer->addNew<ColorPicker>(color);
+  auto colorPicker = changeColorContainer->addNew<Wt::WColorPicker>(color);
   auto changeColorButton = changeColorContainer->addNew<Wt::WPushButton>(Wt::utf8("Update"));
 
-  changeColorButton->clicked().connect([this ,colorPicker]{
-    Wt::WColor color = colorPicker->pickedColor();
+  changeColorButton->clicked().connect([this, colorPicker]{
+    Wt::WColor color = colorPicker->color();
 
     {
       Wt::Dbo::Transaction t(session_);

@@ -1,0 +1,15 @@
+<!--
+SPDX-FileCopyrightText: 2021 Roel Standaert <roel@abittechnical.com>
+
+SPDX-License-Identifier: GPL-2.0-only
+-->
+
+<server>
+  <application-settings location="*">
+    <max-request-size>10240</max-request-size>
+    <web-sockets>true</web-sockets>
+    <properties>
+      <property name="connection_string">POSTGRESQL CONNECTION STRING HERE</property>
+    </properties>
+  </application-settings>
+</server>
