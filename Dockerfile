@@ -69,4 +69,4 @@ ENV LD_LIBRARY_PATH=/swedish/lib
 
 VOLUME ["/swedish/docroot/puzzles"]
 
-CMD ["/swedish/bin/swedish.wt", "--approot=/swedish/approot", "--docroot=/swedish/docroot", "--http-listen=0.0.0.0:8002", "--resources-dir=/swedish/share/Wt/resources", "-c", "/swedish/config/wt_config.xml"]
+CMD ["/swedish/bin/swedish.wt", "--approot=/swedish/approot", "--docroot=/swedish/docroot;/css,/resources,/puzzles", "--http-listen=0.0.0.0:8002", "--resources-dir=/swedish/share/Wt/resources", "-c", "/swedish/config/wt_config.xml"]
