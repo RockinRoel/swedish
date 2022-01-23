@@ -19,11 +19,14 @@ RUN mkdir /boost && \
     rm boost_1_75_0.tar.bz2 && \
     rm -rf boost_1_75_0
 
+ARG WT_VERSION=4.6.1
+
 RUN mkdir /wt && \
     cd /wt && \
-    git clone --depth 1 https://github.com/emweb/wt.git -b bootstrap5 && \
-    mkdir wt/build && \
-    cd wt/build && \
+    wget https://github.com/emweb/wt/archive/refs/tags/${WT_VERSION}.tar.gz -O wt-${WT_VERSION}.tar.gz && \
+    tar xf wt-${WT_VERSION}.tar.gz && \
+    mkdir wt-${WT_VERSION}/build && \
+    cd wt-${WT_VERSION}/build && \
     cmake .. \
       -GNinja \
       -DCMAKE_CXX_STANDARD=17 \
@@ -38,7 +41,7 @@ RUN mkdir /wt && \
       -DCMAKE_INSTALL_PREFIX=/wt/install-dir && \
     ninja install && \
     cd ../.. && \
-    rm -rf wt
+    rm -rf wt-${WT_VERSION}
 
 COPY CMakeLists.txt /swedish/
 COPY src /swedish/src/
