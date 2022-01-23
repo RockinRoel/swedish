@@ -4,7 +4,7 @@
 
 FROM alpine:latest AS builder
 
-RUN apk add git gcc g++ cmake ninja graphicsmagick-dev postgresql-dev zlib-dev linux-headers
+RUN apk add gcc g++ cmake ninja graphicsmagick-dev postgresql-dev zlib-dev linux-headers
 
 # We need to build Boost ourselves because of issue #688: https://github.com/boostorg/spirit/issues/688
 # 1.75.0 is the last version without the regression
