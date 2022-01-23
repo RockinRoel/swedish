@@ -3,26 +3,30 @@
 # SPDX-License-Identifier: CC0-1.0
 
 docker-build:
-  # Use the official docker image.
-  image: docker:latest
+  image: jdrouet/docker-with-buildx:stable
   stage: build
   services:
     - docker:dind
   before_script:
+    - mkdir -p ~/.docker
+    - echo '{"experimental":"enabled"}' > ~/.docker/config.json
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
-  # Default branch leaves tag empty (= latest tag)
+  # Default branch sets tag to latest
   # All other branches are tagged with the escaped branch name (commit ref slug)
   script:
     - |
       if [[ "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" ]]; then
-        tag=""
+        tag="latest"
         echo "Running on default branch '$CI_DEFAULT_BRANCH': tag = 'latest'"
       else
-        tag=":$CI_COMMIT_REF_SLUG"
+        tag="$CI_COMMIT_REF_SLUG"
         echo "Running on branch '$CI_COMMIT_BRANCH': tag = $tag"
       fi
-    - docker build --pull -t "$CI_REGISTRY_IMAGE${tag}" .
-    - docker push "$CI_REGISTRY_IMAGE${tag}"
+    - docker buildx create --use
+    - docker buildx build -f cross/aarch64-linux-musl/Dockerfile --platform linux/arm64/v8 --pull --push -t "$CI_REGISTRY_IMAGE:${tag}-aarch64" .
+    - docker buildx build --platform linux/amd64 --pull --push -t "$CI_REGISTRY_IMAGE:${tag}-amd64" .
+    - docker manifest create "$CI_REGISTRY_IMAGE:${tag}" --amend "$CI_REGISTRY_IMAGE:${tag}-aarch64" --amend "$CI_REGISTRY_IMAGE:${tag}-amd64"
+    - docker manifest push "$CI_REGISTRY_IMAGE:${tag}"
   # Run this job in a branch where a Dockerfile exists
   rules:
     - if: $CI_COMMIT_BRANCH
