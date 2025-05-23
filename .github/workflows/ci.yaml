@@ -13,6 +13,8 @@ jobs:
             runner: ubuntu-24.04
           - arch: arm64
             runner: ubuntu-24.04-arm
+    
+    name: Build and push a Docker image for arch ${{ matrix.arch }}
 
     runs-on: ${{ matrix.runner }}
 
@@ -21,9 +23,6 @@ jobs:
       packages: write
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -38,3 +37,29 @@ jobs:
           push: true
           tags: ghcr.io/rockinroel/swedish:${{ github.sha }}-${{ matrix.arch }}
           platforms: linux/${{ matrix.arch }}
+
+  tag:
+    name: Join together the amd64 and arm64 builds
+
+    needs: build-and-push
+
+    runs-on: ubuntu-24.04
+
+    permissions:
+      packages: write
+    
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Join together the two tags into one
+        run: |
+          docker buildx create --use
+          docker buildx imagetools create \
+            --tag ghcr.io/rockinroel/swedish:${{ github.sha }} \
+              ghcr.io/rockinroel/swedish:${{ github.sha }}-amd64 \
+              ghcr.io/rockinroel/swedish:${{ github.sha }}-arm64
