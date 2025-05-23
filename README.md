@@ -40,7 +40,7 @@ Create a `config` folder with`wt_config.xml`:
 ```
 
 ```sh
-podman pod create --name swedish-pod --publish 127.0.0.1:8002:8002
+podman pod create --name swedish-pod --publish 127.0.0.1:8002:80
 podman run --pod swedish-pod --name swedish-postgres -e POSTGRES_USER=swedish -e POSTGRES_PASSWORD=mypassword -d postgres
-podman run --pod swedish-pod --name swedish-app -v ./config:/swedish/config:Z -d swedish
+podman run --pod swedish-pod --name swedish-app -v ./wt_config.xml:/swedish/config/wt_config.xml:Z -d swedish
 ```
